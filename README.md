@@ -26,3 +26,23 @@ A full-stack web application that uses AI to analyze images and detect objects, 
 - Sharp for image processing
 
 ## 📁 Project Structure
+    ai-image-service/
+    ├── frontend/ # React application
+    ├── backend/ # Express.js server
+    ├── README.md
+    └── .gitignore
+
+## 💫How to Start
+1. **Backend Setup:**
+   ```bash
+   cd backend
+   npm install
+   node server.js
+
+2. **Frontend Setup:**
+    ```bash
+    cd frontend
+    npm install
+    npm start
+    
+3. Access the application at http://localhost:3000
