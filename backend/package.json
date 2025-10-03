@@ -12,9 +12,11 @@
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
     "axios": "^1.12.2",
+    "bcryptjs": "^3.0.2",
     "canvas": "^3.2.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
     "multer": "^2.0.2",
     "pdfkit": "^0.17.2",

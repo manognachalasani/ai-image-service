@@ -4,9 +4,11 @@ const path = require('path');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const sharp = require('sharp');
-
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = 5000;
+const JWT_SECRET = 'your-secret-key-change-in-production';
 
 // Middleware
 app.use(cors());
@@ -14,8 +16,37 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Database setup
-const db = new sqlite3.Database('./images.db');
-db.serialize(() => {
+const db = new sqlite3.Database('./images.db', (err) => {
+  if (err) {
+    console.error('💥 Error connecting to database:', err.message);
+  } else {
+    console.log('✅ Connected to SQLite database');
+    
+    // Initialize tables after connection is established
+    initializeDatabase();
+  }
+});
+
+// Function to initialize database tables
+function initializeDatabase() {
+  console.log('🔄 Initializing database tables...');
+  
+  // Create users table
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    email TEXT UNIQUE,
+    password TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`, (err) => {
+    if (err) {
+      console.error('💥 Error creating users table:', err.message);
+    } else {
+      console.log('✅ Users table ready');
+    }
+  });
+
+  // Create images table
   db.run(`CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT,
@@ -23,10 +54,17 @@ db.serialize(() => {
     objects_detected TEXT,
     text_extracted TEXT,
     faces_detected TEXT,
-    image_path TEXT
-  )`);
+    image_path TEXT,
+    user_id INTEGER
+  )`, (err) => {
+    if (err) {
+      console.error('💥 Error creating images table:', err.message);
+    } else {
+      console.log('✅ Images table ready');
+    }
+  });
 
-  // User analyses history
+  // Create user_analyses table
   db.run(`CREATE TABLE IF NOT EXISTS user_analyses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -34,15 +72,41 @@ db.serialize(() => {
     image_info TEXT,
     saved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id)
-  )`);
-  
-  // User preferences
+  )`, (err) => {
+    if (err) {
+      console.error('💥 Error creating user_analyses table:', err.message);
+    } else {
+      console.log('✅ User analyses table ready');
+    }
+  });
+
+  // Create user_preferences table
   db.run(`CREATE TABLE IF NOT EXISTS user_preferences (
     user_id INTEGER PRIMARY KEY,
     preferences TEXT,
     FOREIGN KEY (user_id) REFERENCES users (id)
-  )`);
+  )`, (err) => {
+    if (err) {
+      console.error('💥 Error creating user_preferences table:', err.message);
+    } else {
+      console.log('✅ User preferences table ready');
+    }
+  });
+}
+
+// Add a simple test endpoint to check database status
+app.get('/api/db-status', (req, res) => {
+  db.get("SELECT name FROM sqlite_master WHERE type='table'", (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+    res.json({ 
+      status: 'Database connected',
+      tables: row ? 'Tables exist' : 'No tables found'
+    });
+  });
 });
+
 
 // Enhanced smart mock AI analysis
 const analyzeImageWithMockAI = async (imagePath, originalFilename) => {
@@ -280,6 +344,125 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// === AUTH ROUTES ===
+
+// Register endpoint
+// Register endpoint
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    console.log('🔐 Register attempt:', { username, email });
+
+    // Validation
+    if (!username || !email || !password) {
+      console.log('❌ Validation failed: Missing fields');
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (password.length < 6) {
+      console.log('❌ Validation failed: Password too short');
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    console.log('🔍 Checking if user exists...');
+    
+    // Check if user exists
+    db.get('SELECT * FROM users WHERE email = ? OR username = ?', [email, username], async (err, user) => {
+      if (err) {
+        console.error('💥 Database SELECT error:', err);
+        return res.status(500).json({ error: 'Database error - cannot check existing users' });
+      }
+      
+      if (user) {
+        console.log('❌ User already exists:', user);
+        return res.status(400).json({ error: 'User already exists' });
+      }
+
+      console.log('✅ No existing user found, creating new user...');
+
+      try {
+        // Hash password and create user
+        const hashedPassword = await bcrypt.hash(password, 10);
+        console.log('🔑 Password hashed successfully');
+        
+        db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', 
+          [username, email, hashedPassword], 
+          function(err) {
+            if (err) {
+              console.error('💥 Database INSERT error:', err);
+              return res.status(500).json({ error: 'Error creating user in database' });
+            }
+
+            console.log('✅ User created successfully with ID:', this.lastID);
+
+            // Generate JWT token
+            const token = jwt.sign({ userId: this.lastID }, JWT_SECRET, { expiresIn: '7d' });
+            
+            res.json({
+              success: true,
+              message: 'User created successfully',
+              token,
+              user: { id: this.lastID, username, email }
+            });
+            
+            console.log('🎉 Registration completed successfully');
+          }
+        );
+      } catch (hashError) {
+        console.error('💥 Password hashing error:', hashError);
+        return res.status(500).json({ error: 'Server error during registration' });
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 General registration error:', error);
+    res.status(500).json({ error: 'Server error during registration' });
+  }
+});
+
+// Login endpoint
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log('🔐 Login attempt:', { email });
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Find user
+    db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
+      if (err) {
+        console.error('💥 Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      if (!user) {
+        return res.status(400).json({ error: 'Invalid credentials' });
+      }
+
+      // Check password using bcrypt
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'Invalid credentials' });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+      
+      res.json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: { id: user.id, username: user.username, email: user.email }
+      });
+    });
+
+  } catch (error) {
+    console.error('💥 Login error:', error);
+    res.status(500).json({ error: 'Server error during login' });
+  }
+});
 
 // === USER-SPECIFIC FEATURES (Require Authentication) ===
 

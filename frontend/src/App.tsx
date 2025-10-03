@@ -2,15 +2,19 @@ import React, { useState } from 'react';
 import './App.css';
 import ImageUploader from './components/ImageUploader';
 import AnalysisResults from './components/AnalysisResults';
+import UserProfile from './components/UserProfile';
+import { AuthProvider } from './context/AuthContext';
 import { AnalysisResult, ImageInfo } from './services/api';
 
-function App() {
+function AppContent() {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
   const [currentImage, setCurrentImage] = useState<ImageInfo | null>(null);
+  const [activeTab, setActiveTab] = useState<'analyze' | 'gallery'>('analyze');
 
   const handleAnalysisComplete = (analysis: AnalysisResult, imageInfo: ImageInfo) => {
     setCurrentAnalysis(analysis);
     setCurrentImage(imageInfo);
+    setActiveTab('analyze');
   };
 
   return (
@@ -21,34 +25,70 @@ function App() {
           AI Image Recognition
         </div>
         <nav className="nav-tabs">
-          <button className="nav-button active">Analyze</button>
-          <button className="nav-button">Gallery</button>
+          <button
+            onClick={() => setActiveTab('analyze')}
+            className={`nav-button ${activeTab === 'analyze' ? 'active' : ''}`}
+          >
+            Analyze
+          </button>
+          <button
+            onClick={() => setActiveTab('gallery')}
+            className={`nav-button ${activeTab === 'gallery' ? 'active' : ''}`}
+          >
+            Gallery
+          </button>
         </nav>
+        <UserProfile />
       </header>
 
       <main className="main-content">
-        <div className="search-container">
-          <input
-            type="text"
-            placeholder="Search analyzed images..."
-            className="search-input"
-          />
-        </div>
-
-        <div className="upload-section">
-          <ImageUploader onAnalysisComplete={handleAnalysisComplete} />
-          
-          {currentAnalysis && currentImage ? (
-            <AnalysisResults analysis={currentAnalysis} imageInfo={currentImage} />
-          ) : (
-            <div className="card">
-              <h2>Analysis Results</h2>
-              <p>Upload an image to see AI analysis results here.</p>
+        {activeTab === 'analyze' && (
+          <div className="upload-section">
+            <div>
+              <ImageUploader onAnalysisComplete={handleAnalysisComplete} />
             </div>
-          )}
-        </div>
+            <div>
+              {currentAnalysis && currentImage ? (
+                <AnalysisResults 
+                  analysis={currentAnalysis} 
+                  imageInfo={currentImage}
+                />
+              ) : (
+                <div className="card">
+                  <h2>Analysis Results</h2>
+                  <p>Upload an image to see AI analysis results here.</p>
+                  <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '6px' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#0369a1' }}>
+                      <strong>💡 Tip:</strong> Register to save your analysis history and access premium features!
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'gallery' && (
+          <div className="card">
+            <h2>Image Gallery</h2>
+            <p>Search and browse analyzed images. (Coming soon for registered users!)</p>
+            <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '6px' }}>
+              <p style={{ fontSize: '0.875rem', color: '#0369a1' }}>
+                <strong>🔒 Premium Feature:</strong> Register to save your personal image gallery and analysis history!
+              </p>
+            </div>
+          </div>
+        )}
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
