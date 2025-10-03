@@ -1,5 +1,6 @@
 import React from 'react';
 import { AnalysisResult, ImageInfo } from '../services/api';
+import ExportOptions from './ExportOptions';
 
 interface AnalysisResultsProps {
   analysis: AnalysisResult;
@@ -7,11 +8,24 @@ interface AnalysisResultsProps {
 }
 
 const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }) => {
+  // Safe helper functions to handle undefined values
+  const safeJoin = (array: any[] | undefined, separator: string = ', '): string => {
+    if (!array || !Array.isArray(array)) return 'None';
+    return array.join(separator);
+  };
+
+  const safeGet = (obj: any, key: string, fallback: string = 'Unknown'): string => {
+    return obj && obj[key] ? String(obj[key]) : fallback;
+  };
+
   return (
     <div className="card">
       <h2>🤖 AI Analysis Results</h2>
       
-      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+      {/* Add Export Options at the top */}
+      <ExportOptions analysis={analysis} imageInfo={imageInfo} />
+      
+      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', marginTop: '2rem' }}>
         {/* Image Preview */}
         <div>
           <img 
@@ -33,8 +47,8 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }
             <div className="result-item">
               <h4>📊 Basic Information</h4>
               <ul className="result-list">
-                <li><strong>Scene:</strong> {analysis.scene || analysis.analysisType}</li>
-                <li><strong>Confidence:</strong> {(parseFloat(analysis.confidence) * 100).toFixed(1)}%</li>
+                <li><strong>Scene:</strong> {analysis.scene || analysis.analysisType || 'General'}</li>
+                <li><strong>Confidence:</strong> {(parseFloat(safeGet(analysis, 'confidence', '0.8')) * 100).toFixed(1)}%</li>
                 <li><strong>Quality:</strong> {analysis.imageQuality || analysis.quality || 'Good'}</li>
                 <li><strong>Processing:</strong> {analysis.processingTime || '150'}ms</li>
               </ul>
@@ -44,14 +58,18 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }
             <div className="result-item">
               <h4>🔍 Objects Detected</h4>
               <ul className="result-list">
-                {analysis.objects.map((obj, idx) => (
-                  <li key={idx}>• {obj}</li>
-                ))}
+                {analysis.objects && analysis.objects.length > 0 ? (
+                  analysis.objects.map((obj, idx) => (
+                    <li key={idx}>• {obj}</li>
+                  ))
+                ) : (
+                  <li>No objects detected</li>
+                )}
               </ul>
             </div>
             
             {/* Text Found */}
-            {analysis.text.length > 0 && (
+            {analysis.text && analysis.text.length > 0 && (
               <div className="result-item">
                 <h4>📝 Text Found</h4>
                 <ul className="result-list">
@@ -63,7 +81,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }
             )}
             
             {/* Faces/Subjects */}
-            {analysis.faces.length > 0 && (
+            {analysis.faces && analysis.faces.length > 0 && (
               <div className="result-item">
                 <h4>👤 Subjects Detected</h4>
                 <ul className="result-list">
@@ -71,9 +89,9 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }
                     <li key={idx}>
                       <div style={{ fontSize: '0.875rem' }}>
                         <strong>Subject {idx + 1}:</strong><br/>
-                        • {face.gender || face.species || 'Person'}<br/>
-                        • Age: {face.age}<br/>
-                        • Mood: {face.emotions?.join(', ') || 'Neutral'}<br/>
+                        • {safeGet(face, 'gender') || safeGet(face, 'species') || 'Person'}<br/>
+                        • Age: {safeGet(face, 'age', 'Unknown')}<br/>
+                        • Mood: {safeJoin(face.emotions)}<br/>
                         {face.smile && `• ${face.smile}`}<br/>
                         {face.glasses && `• ${face.glasses}`}<br/>
                         {face.pose && `• Pose: ${face.pose}`}<br/>
