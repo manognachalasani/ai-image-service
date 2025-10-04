@@ -1,13 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AnalysisResult, ImageInfo } from '../services/api';
 import ExportOptions from './ExportOptions';
+import { useAuth } from '../context/AuthContext';
 
 interface AnalysisResultsProps {
   analysis: AnalysisResult;
   imageInfo: ImageInfo;
+  autoSaved?: boolean;
+  analysisId?: number;
 }
 
-const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }) => {
+const AnalysisResults: React.FC<AnalysisResultsProps> = ({ 
+  analysis, 
+  imageInfo, 
+  autoSaved = false,
+  analysisId 
+}) => {
+  const { isAuthenticated } = useAuth();
+
   // Safe helper functions to handle undefined values
   const safeJoin = (array: any[] | undefined, separator: string = ', '): string => {
     if (!array || !Array.isArray(array)) return 'None';
@@ -18,84 +28,211 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }
     return obj && obj[key] ? String(obj[key]) : fallback;
   };
 
+  // Get analysis quality indicator
+  const getQualityColor = (quality: string) => {
+    const qualityLower = quality?.toLowerCase() || 'good';
+    switch (qualityLower) {
+      case 'excellent': return '#10b981';
+      case 'good': return '#3b82f6';
+      case 'average': return '#f59e0b';
+      case 'high quality': return '#10b981';
+      case 'clear focus': return '#10b981';
+      case 'standard quality': return '#f59e0b';
+      default: return '#6b7280';
+    }
+  };
+
   return (
     <div className="card">
-      <h2>🤖 AI Analysis Results</h2>
-      
-      {/* Add Export Options at the top */}
-      <ExportOptions analysis={analysis} imageInfo={imageInfo} />
-      
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+        <h2>🤖 AI Analysis Results</h2>
+        
+        {/* Auto-save indicator and analysis ID */}
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {isAuthenticated && autoSaved && (
+            <span 
+              style={{ 
+                background: '#10b981', 
+                color: 'white', 
+                padding: '0.25rem 0.75rem', 
+                borderRadius: '20px', 
+                fontSize: '0.75rem',
+                fontWeight: 'bold'
+              }}
+            >
+              ✅ Auto-saved
+            </span>
+          )}
+          {analysisId && (
+            <span 
+              style={{ 
+                background: '#3b82f6', 
+                color: 'white', 
+                padding: '0.25rem 0.75rem', 
+                borderRadius: '20px', 
+                fontSize: '0.75rem' 
+              }}
+            >
+              ID: {analysisId}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Export Options - Use without onExport prop since it handles exports internally */}
+      <ExportOptions 
+        analysis={analysis} 
+        imageInfo={imageInfo} 
+      />
+
       <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', marginTop: '2rem' }}>
         {/* Image Preview */}
         <div>
           <img 
             src={`http://localhost:5000${imageInfo.thumbnail}`} 
             alt="Analyzed" 
-            style={{ width: '200px', borderRadius: '8px', border: '2px solid #e5e7eb' }}
+            style={{ 
+              width: '200px', 
+              height: '200px',
+              objectFit: 'cover',
+              borderRadius: '8px', 
+              border: '2px solid #e5e7eb' 
+            }}
           />
           <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
             <p><strong>File:</strong> {imageInfo.originalName}</p>
             <p><strong>Size:</strong> {(imageInfo.size / 1024 / 1024).toFixed(2)} MB</p>
+            <p>
+              <strong>Quality:</strong> 
+              <span style={{ 
+                // FIXED: Added fallback for quality
+                color: getQualityColor(analysis.imageQuality || analysis.quality || 'Good'),
+                fontWeight: 'bold',
+                marginLeft: '0.25rem'
+              }}>
+                {analysis.imageQuality || analysis.quality || 'Good'}
+              </span>
+            </p>
           </div>
         </div>
 
         {/* Analysis Results */}
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
             
             {/* Basic Info */}
             <div className="result-item">
-              <h4>📊 Basic Information</h4>
+              <h4>📊 Analysis Overview</h4>
               <ul className="result-list">
-                <li><strong>Scene:</strong> {analysis.scene || analysis.analysisType || 'General'}</li>
-                <li><strong>Confidence:</strong> {(parseFloat(safeGet(analysis, 'confidence', '0.8')) * 100).toFixed(1)}%</li>
-                <li><strong>Quality:</strong> {analysis.imageQuality || analysis.quality || 'Good'}</li>
-                <li><strong>Processing:</strong> {analysis.processingTime || '150'}ms</li>
+                <li>
+                  <strong>Type:</strong> 
+                  <span style={{ 
+                    textTransform: 'capitalize',
+                    background: '#f3f4f6',
+                    padding: '0.125rem 0.5rem',
+                    borderRadius: '4px',
+                    marginLeft: '0.5rem',
+                    fontSize: '0.75rem'
+                  }}>
+                    {analysis.analysisType || 'general'}
+                  </span>
+                </li>
+                <li>
+                  <strong>Confidence:</strong> 
+                  <span style={{ 
+                    color: parseFloat(safeGet(analysis, 'confidence', '0.8')) > 0.8 ? '#10b981' : '#f59e0b',
+                    fontWeight: 'bold',
+                    marginLeft: '0.5rem'
+                  }}>
+                    {(parseFloat(safeGet(analysis, 'confidence', '0.8')) * 100).toFixed(1)}%
+                  </span>
+                </li>
+                <li><strong>Scene:</strong> {analysis.scene || 'General'}</li>
+                <li><strong>Processing Time:</strong> {analysis.processingTime || '150'}ms</li>
+                {analysis.timestamp && (
+                  <li><strong>Analyzed:</strong> {new Date(analysis.timestamp).toLocaleString()}</li>
+                )}
               </ul>
             </div>
 
             {/* Objects Detected */}
             <div className="result-item">
-              <h4>🔍 Objects Detected</h4>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <h4 style={{ margin: 0 }}>🔍 Objects</h4>
+                <span className="badge">{analysis.objects?.length || 0}</span>
+              </div>
               <ul className="result-list">
                 {analysis.objects && analysis.objects.length > 0 ? (
                   analysis.objects.map((obj, idx) => (
-                    <li key={idx}>• {obj}</li>
+                    <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ 
+                        width: '6px', 
+                        height: '6px', 
+                        background: '#3b82f6', 
+                        borderRadius: '50%' 
+                      }}></div>
+                      {obj}
+                    </li>
                   ))
                 ) : (
-                  <li>No objects detected</li>
+                  <li style={{ color: '#9ca3af', fontStyle: 'italic' }}>No objects detected</li>
                 )}
               </ul>
             </div>
             
             {/* Text Found */}
-            {analysis.text && analysis.text.length > 0 && (
-              <div className="result-item">
-                <h4>📝 Text Found</h4>
-                <ul className="result-list">
-                  {analysis.text.map((txt, idx) => (
-                    <li key={idx}>" {txt} "</li>
-                  ))}
-                </ul>
+            <div className="result-item">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <h4 style={{ margin: 0 }}>📝 Text</h4>
+                <span className="badge">{analysis.text?.length || 0}</span>
               </div>
-            )}
+              <ul className="result-list">
+                {analysis.text && analysis.text.length > 0 ? (
+                  analysis.text.map((txt, idx) => (
+                    <li key={idx} style={{ 
+                      background: '#f0f9ff', 
+                      padding: '0.5rem',
+                      borderRadius: '4px',
+                      borderLeft: '3px solid #0ea5e9',
+                      marginBottom: '0.25rem'
+                    }}>
+                      "{txt}"
+                    </li>
+                  ))
+                ) : (
+                  <li style={{ color: '#9ca3af', fontStyle: 'italic' }}>No text found</li>
+                )}
+              </ul>
+            </div>
             
             {/* Faces/Subjects */}
             {analysis.faces && analysis.faces.length > 0 && (
               <div className="result-item">
-                <h4>👤 Subjects Detected</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <h4 style={{ margin: 0 }}>👤 Subjects</h4>
+                  <span className="badge">{analysis.faces.length}</span>
+                </div>
                 <ul className="result-list">
                   {analysis.faces.map((face, idx) => (
-                    <li key={idx}>
+                    <li key={idx} style={{ 
+                      background: '#fef7ed', 
+                      padding: '0.75rem',
+                      borderRadius: '6px',
+                      borderLeft: '3px solid #f59e0b',
+                      marginBottom: '0.5rem'
+                    }}>
                       <div style={{ fontSize: '0.875rem' }}>
-                        <strong>Subject {idx + 1}:</strong><br/>
-                        • {safeGet(face, 'gender') || safeGet(face, 'species') || 'Person'}<br/>
-                        • Age: {safeGet(face, 'age', 'Unknown')}<br/>
-                        • Mood: {safeJoin(face.emotions)}<br/>
-                        {face.smile && `• ${face.smile}`}<br/>
-                        {face.glasses && `• ${face.glasses}`}<br/>
-                        {face.pose && `• Pose: ${face.pose}`}<br/>
-                        {face.expression && `• Expression: ${face.expression}`}
+                        <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                          {safeGet(face, 'species') || safeGet(face, 'gender') || 'Person'} {idx + 1}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem' }}>
+                          <span>Age: {safeGet(face, 'age', 'Unknown')}</span>
+                          <span>Mood: {safeJoin(face.emotions)}</span>
+                          {face.smile && <span>Smile: {face.smile}</span>}
+                          {face.glasses && <span>Glasses: {face.glasses}</span>}
+                          {face.pose && <span>Pose: {face.pose}</span>}
+                          {face.expression && <span>Expression: {face.expression}</span>}
+                        </div>
                       </div>
                     </li>
                   ))}
@@ -103,23 +240,60 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, imageInfo }
               </div>
             )}
 
-            {/* Additional Analysis */}
-            <div className="result-item">
-              <h4>🌟 Additional Insights</h4>
-              <ul className="result-list">
-                {analysis.lighting && <li><strong>Lighting:</strong> {analysis.lighting}</li>}
-                {analysis.quality && <li><strong>Quality:</strong> {analysis.quality}</li>}
-                {analysis.environment && <li><strong>Environment:</strong> {analysis.environment}</li>}
-                {analysis.activity && <li><strong>Activity:</strong> {analysis.activity}</li>}
-                {analysis.type && <li><strong>Type:</strong> {analysis.type}</li>}
-                {analysis.appeal && <li><strong>Appeal:</strong> {analysis.appeal}</li>}
-                {analysis.setting && <li><strong>Setting:</strong> {analysis.setting}</li>}
-              </ul>
-            </div>
+            {/* Additional Insights */}
+            {(analysis.lighting || analysis.environment || analysis.activity || analysis.type || analysis.appeal || analysis.setting) && (
+              <div className="result-item">
+                <h4>🌟 Additional Insights</h4>
+                <ul className="result-list">
+                  {analysis.lighting && (
+                    <li>
+                      <strong>Lighting:</strong> 
+                      <span style={{ marginLeft: '0.5rem' }}>{analysis.lighting}</span>
+                    </li>
+                  )}
+                  {analysis.environment && (
+                    <li>
+                      <strong>Environment:</strong> 
+                      <span style={{ marginLeft: '0.5rem' }}>{analysis.environment}</span>
+                    </li>
+                  )}
+                  {analysis.activity && (
+                    <li>
+                      <strong>Activity Level:</strong> 
+                      <span style={{ marginLeft: '0.5rem' }}>{analysis.activity}</span>
+                    </li>
+                  )}
+                  {analysis.appeal && (
+                    <li>
+                      <strong>Visual Appeal:</strong> 
+                      <span style={{ marginLeft: '0.5rem' }}>{analysis.appeal}</span>
+                    </li>
+                  )}
+                  {analysis.setting && (
+                    <li>
+                      <strong>Setting:</strong> 
+                      <span style={{ marginLeft: '0.5rem' }}>{analysis.setting}</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
 
           </div>
         </div>
       </div>
+
+      {/* Add some CSS for badges */}
+      <style>{`
+        .badge {
+          background: #e5e7eb;
+          color: #374151;
+          padding: 0.125rem 0.5rem;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: bold;
+        }
+      `}</style>
     </div>
   );
 };

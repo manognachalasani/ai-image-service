@@ -6,6 +6,9 @@ const sqlite3 = require('sqlite3').verbose();
 const sharp = require('sharp');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const PDFDocument = require('pdfkit');
+const { createCanvas, loadImage } = require('canvas');
+
 const app = express();
 const PORT = 5000;
 const JWT_SECRET = 'your-secret-key-change-in-production';
@@ -15,105 +18,73 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// Database setup
+// Auth Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Access token required' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid or expired token' });
+    req.user = user;
+    next();
+  });
+};
+
+// Database Setup
 const db = new sqlite3.Database('./images.db', (err) => {
   if (err) {
-    console.error('💥 Error connecting to database:', err.message);
+    console.error('Database connection error:', err.message);
   } else {
     console.log('✅ Connected to SQLite database');
-    
-    // Initialize tables after connection is established
     initializeDatabase();
   }
 });
 
-// Function to initialize database tables
 function initializeDatabase() {
-  console.log('🔄 Initializing database tables...');
-  
-  // Create users table
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    email TEXT UNIQUE,
-    password TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`, (err) => {
-    if (err) {
-      console.error('💥 Error creating users table:', err.message);
-    } else {
-      console.log('✅ Users table ready');
-    }
-  });
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE,
+      email TEXT UNIQUE,
+      password TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename TEXT,
+      upload_date TEXT,
+      objects_detected TEXT,
+      text_extracted TEXT,
+      faces_detected TEXT,
+      image_path TEXT,
+      user_id INTEGER
+    )`,
+    `CREATE TABLE IF NOT EXISTS user_analyses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      analysis_data TEXT,
+      image_info TEXT,
+      saved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id INTEGER PRIMARY KEY,
+      preferences TEXT,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )`
+  ];
 
-  // Create images table
-  db.run(`CREATE TABLE IF NOT EXISTS images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename TEXT,
-    upload_date TEXT,
-    objects_detected TEXT,
-    text_extracted TEXT,
-    faces_detected TEXT,
-    image_path TEXT,
-    user_id INTEGER
-  )`, (err) => {
-    if (err) {
-      console.error('💥 Error creating images table:', err.message);
-    } else {
-      console.log('✅ Images table ready');
-    }
-  });
-
-  // Create user_analyses table
-  db.run(`CREATE TABLE IF NOT EXISTS user_analyses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    analysis_data TEXT,
-    image_info TEXT,
-    saved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users (id)
-  )`, (err) => {
-    if (err) {
-      console.error('💥 Error creating user_analyses table:', err.message);
-    } else {
-      console.log('✅ User analyses table ready');
-    }
-  });
-
-  // Create user_preferences table
-  db.run(`CREATE TABLE IF NOT EXISTS user_preferences (
-    user_id INTEGER PRIMARY KEY,
-    preferences TEXT,
-    FOREIGN KEY (user_id) REFERENCES users (id)
-  )`, (err) => {
-    if (err) {
-      console.error('💥 Error creating user_preferences table:', err.message);
-    } else {
-      console.log('✅ User preferences table ready');
-    }
+  tables.forEach((sql) => {
+    db.run(sql, (err) => {
+      if (err) console.error('Table creation error:', err.message);
+    });
   });
 }
 
-// Add a simple test endpoint to check database status
-app.get('/api/db-status', (req, res) => {
-  db.get("SELECT name FROM sqlite_master WHERE type='table'", (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error: ' + err.message });
-    }
-    res.json({ 
-      status: 'Database connected',
-      tables: row ? 'Tables exist' : 'No tables found'
-    });
-  });
-});
-
-
 // Enhanced smart mock AI analysis
 const analyzeImageWithMockAI = async (imagePath, originalFilename) => {
-  // Extract clues from filename
   const filename = originalFilename.toLowerCase();
-  
-  // Smart scenario detection based on filename clues
   let detectedScenario = 'general';
   let confidence = 0.85;
 
@@ -137,7 +108,6 @@ const analyzeImageWithMockAI = async (imagePath, originalFilename) => {
     confidence = 0.89;
   }
 
-  // Enhanced scenarios with more realistic data
   const scenarios = {
     portrait: {
       objects: ['Person', 'Face', 'Skin', 'Hair', 'Eyes', 'Clothing', 'Background', 'Human'],
@@ -222,7 +192,7 @@ const analyzeImageWithMockAI = async (imagePath, originalFilename) => {
 
   const analysis = scenarios[detectedScenario];
   
-  // Add some random variation to objects
+  // Add random variation to objects
   const extraObjects = {
     portrait: ['Jewelry', 'Accessories', 'Makeup'],
     landscape: ['Sunlight', 'Shadows', 'Reflections'],
@@ -247,7 +217,7 @@ const analyzeImageWithMockAI = async (imagePath, originalFilename) => {
   };
 };
 
-// File upload configuration
+// File Upload Configuration
 const storage = multer.diskStorage({
   destination: 'uploads/',
   filename: (req, file, cb) => {
@@ -259,23 +229,26 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
-    }
+    file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Only image files allowed!'), false);
   },
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-// Upload and analyze endpoint
+// Core Analysis Endpoint with Auto-Save
 app.post('/api/analyze', upload.single('image'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
-    }
+    if (!req.file) return res.status(400).json({ error: 'No image file provided' });
 
-    console.log('Processing image:', req.file.filename);
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    let userId = null;
+
+    if (token) {
+      try {
+        const user = jwt.verify(token, JWT_SECRET);
+        userId = user.userId;
+      } catch (err) {}
+    }
 
     // Generate thumbnail
     await sharp(req.file.path)
@@ -283,27 +256,33 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
       .jpeg({ quality: 80 })
       .toFile(`uploads/thumb-${req.file.filename}`);
 
-    // Perform AI analysis
     const analysis = await analyzeImageWithMockAI(req.file.path, req.file.originalname);
 
-    // Store in database
+    // Store in main images table
     db.run(
-      `INSERT INTO images (filename, upload_date, objects_detected, text_extracted, faces_detected, image_path) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        req.file.originalname,
-        new Date().toISOString(),
-        JSON.stringify(analysis.objects),
-        JSON.stringify(analysis.text),
-        JSON.stringify(analysis.faces),
-        req.file.filename
-      ],
-      function(err) {
-        if (err) {
-          console.error('Database error:', err);
-        }
-      }
+      `INSERT INTO images (filename, upload_date, objects_detected, text_extracted, faces_detected, image_path, user_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [req.file.originalname, new Date().toISOString(), JSON.stringify(analysis.objects), 
+       JSON.stringify(analysis.text), JSON.stringify(analysis.faces), req.file.filename, userId]
     );
+
+    // Auto-save for registered users
+    if (userId) {
+      autoSaveAnalysis(userId, analysis, {
+        originalName: req.file.originalname,
+        storedName: req.file.filename,
+        size: req.file.size,
+        thumbnail: `/uploads/thumb-${req.file.filename}`,
+        fullImage: `/uploads/${req.file.filename}`
+      })
+      .then(saveResult => {
+        console.log('Auto-save result:', saveResult);
+      })
+      .catch(saveError => {
+        console.error('Auto-save failed:', saveError);
+        // Don't fail the main request if auto-save fails
+      });
+}
 
     res.json({
       success: true,
@@ -315,225 +294,330 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
         thumbnail: `/uploads/thumb-${req.file.filename}`,
         fullImage: `/uploads/${req.file.filename}`
       },
-      analysisId: Date.now()
+      autoSaved: !!userId
     });
 
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Processing failed: ' + error.message 
-    });
+    res.status(500).json({ success: false, error: 'Processing failed' });
   }
 });
 
-// === AUTH MIDDLEWARE===
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
+// Enhanced auto-save with duplicate prevention and better error handling
+const autoSaveAnalysis = (userId, analysis, imageInfo) => {
+  return new Promise((resolve, reject) => {
+    // Check for recent duplicate analysis to prevent spam
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    
+    db.get(
+      `SELECT id FROM user_analyses 
+       WHERE user_id = ? AND image_info LIKE ? AND saved_at > ? 
+       LIMIT 1`,
+      [userId, `%${imageInfo.storedName}%`, fiveMinutesAgo],
+      (err, existing) => {
+        if (err) return reject(err);
+        
+        if (existing) {
+          console.log('Duplicate analysis detected, skipping auto-save');
+          return resolve({ skipped: true, reason: 'duplicate' });
+        }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    req.user = user;
-    next();
+        // Proceed with saving
+        db.run(
+          `INSERT INTO user_analyses (user_id, analysis_data, image_info, saved_at) 
+           VALUES (?, ?, ?, ?)`,
+          [userId, JSON.stringify(analysis), JSON.stringify(imageInfo), new Date().toISOString()],
+          function(err) {
+            if (err) return reject(err);
+            resolve({ success: true, savedId: this.lastID });
+          }
+        );
+      }
+    );
   });
 };
 
-// === AUTH ROUTES ===
 
-// Register endpoint
-// Register endpoint
+// Auth Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    console.log('🔐 Register attempt:', { username, email });
+    if (!username || !email || !password) return res.status(400).json({ error: 'All fields required' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
-    // Validation
-    if (!username || !email || !password) {
-      console.log('❌ Validation failed: Missing fields');
-      return res.status(400).json({ error: 'All fields are required' });
-    }
-
-    if (password.length < 6) {
-      console.log('❌ Validation failed: Password too short');
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    console.log('🔍 Checking if user exists...');
-    
-    // Check if user exists
     db.get('SELECT * FROM users WHERE email = ? OR username = ?', [email, username], async (err, user) => {
-      if (err) {
-        console.error('💥 Database SELECT error:', err);
-        return res.status(500).json({ error: 'Database error - cannot check existing users' });
-      }
-      
-      if (user) {
-        console.log('❌ User already exists:', user);
-        return res.status(400).json({ error: 'User already exists' });
-      }
+      if (err) return res.status(500).json({ error: 'Database error' });
+      if (user) return res.status(400).json({ error: 'User already exists' });
 
-      console.log('✅ No existing user found, creating new user...');
+      const hashedPassword = await bcrypt.hash(password, 10);
+      db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hashedPassword], function(err) {
+        if (err) return res.status(500).json({ error: 'Error creating user' });
 
-      try {
-        // Hash password and create user
-        const hashedPassword = await bcrypt.hash(password, 10);
-        console.log('🔑 Password hashed successfully');
-        
-        db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', 
-          [username, email, hashedPassword], 
-          function(err) {
-            if (err) {
-              console.error('💥 Database INSERT error:', err);
-              return res.status(500).json({ error: 'Error creating user in database' });
-            }
-
-            console.log('✅ User created successfully with ID:', this.lastID);
-
-            // Generate JWT token
-            const token = jwt.sign({ userId: this.lastID }, JWT_SECRET, { expiresIn: '7d' });
-            
-            res.json({
-              success: true,
-              message: 'User created successfully',
-              token,
-              user: { id: this.lastID, username, email }
-            });
-            
-            console.log('🎉 Registration completed successfully');
-          }
-        );
-      } catch (hashError) {
-        console.error('💥 Password hashing error:', hashError);
-        return res.status(500).json({ error: 'Server error during registration' });
-      }
+        const token = jwt.sign({ userId: this.lastID }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ success: true, token, user: { id: this.lastID, username, email } });
+      });
     });
-
   } catch (error) {
-    console.error('💥 General registration error:', error);
     res.status(500).json({ error: 'Server error during registration' });
   }
 });
 
-// Login endpoint
 app.post('/api/auth/login', (req, res) => {
-  try {
-    const { email, password } = req.body;
-    console.log('🔐 Login attempt:', { email });
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
+  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
-    // Find user
-    db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-      if (err) {
-        console.error('💥 Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      if (!user) {
-        return res.status(400).json({ error: 'Invalid credentials' });
-      }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-      // Check password using bcrypt
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ error: 'Invalid credentials' });
-      }
-
-      // Generate JWT token
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-      
-      res.json({
-        success: true,
-        message: 'Login successful',
-        token,
-        user: { id: user.id, username: user.username, email: user.email }
-      });
-    });
-
-  } catch (error) {
-    console.error('💥 Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
-  }
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ success: true, token, user: { id: user.id, username: user.username, email: user.email } });
+  });
 });
 
-// === USER-SPECIFIC FEATURES (Require Authentication) ===
-
-// Save analysis to user's history
+// User Features
 app.post('/api/user/save-analysis', authenticateToken, (req, res) => {
   const { analysisData, imageInfo } = req.body;
   
   db.run(
-    `INSERT INTO user_analyses (user_id, analysis_data, image_info, saved_at) 
-     VALUES (?, ?, ?, ?)`,
+    `INSERT INTO user_analyses (user_id, analysis_data, image_info, saved_at) VALUES (?, ?, ?, ?)`,
     [req.user.userId, JSON.stringify(analysisData), JSON.stringify(imageInfo), new Date().toISOString()],
     function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to save analysis' });
-      }
+      if (err) return res.status(500).json({ error: 'Failed to save analysis' });
       res.json({ success: true, savedId: this.lastID });
     }
   );
 });
 
-// Get user's analysis history (only for registered users)
+// Enhanced history endpoint with search and filtering
 app.get('/api/user/history', authenticateToken, (req, res) => {
-  db.all(
-    'SELECT * FROM user_analyses WHERE user_id = ? ORDER BY saved_at DESC',
-    [req.user.userId],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to fetch history' });
-      }
-      
-      const history = rows.map(row => ({
-        id: row.id,
-        analysis: JSON.parse(row.analysis_data),
-        imageInfo: JSON.parse(row.image_info),
-        savedAt: row.saved_at
-      }));
-      
-      res.json(history);
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || '';
+  const analysisType = req.query.type || '';
+
+  let query = `SELECT * FROM user_analyses WHERE user_id = ?`;
+  let params = [req.user.userId];
+  let countQuery = `SELECT COUNT(*) as total FROM user_analyses WHERE user_id = ?`;
+  let countParams = [req.user.userId];
+
+  // Add search filter
+  if (search) {
+    query += ` AND (analysis_data LIKE ? OR image_info LIKE ?)`;
+    countQuery += ` AND (analysis_data LIKE ? OR image_info LIKE ?)`;
+    const searchTerm = `%${search}%`;
+    params.push(searchTerm, searchTerm);
+    countParams.push(searchTerm, searchTerm);
+  }
+
+  // Add analysis type filter
+  if (analysisType) {
+    query += ` AND analysis_data LIKE ?`;
+    countQuery += ` AND analysis_data LIKE ?`;
+    const typeTerm = `%"analysisType":"${analysisType}"%`;
+    params.push(typeTerm);
+    countParams.push(typeTerm);
+  }
+
+  query += ` ORDER BY saved_at DESC LIMIT ? OFFSET ?`;
+  params.push(limit, offset);
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('History fetch error:', err);
+      return res.status(500).json({ error: 'Failed to fetch history' });
     }
-  );
+
+    const history = rows.map(row => {
+      try {
+        const analysis = JSON.parse(row.analysis_data);
+        const imageInfo = JSON.parse(row.image_info);
+        
+        return {
+          id: row.id,
+          analysis: analysis,
+          imageInfo: imageInfo,
+          savedAt: row.saved_at,
+          formattedDate: new Date(row.saved_at).toLocaleDateString('en-US', {
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit'
+          }),
+          // Add quick access fields for frontend
+          quickInfo: {
+            analysisType: analysis.analysisType,
+            objectCount: analysis.objects?.length || 0,
+            textCount: analysis.text?.length || 0,
+            faceCount: analysis.faces?.length || 0
+          }
+        };
+      } catch (parseError) {
+        console.error('Error parsing analysis data:', parseError);
+        return null;
+      }
+    }).filter(item => item !== null);
+
+    // Get total count for pagination
+    db.get(countQuery, countParams, (err, countResult) => {
+      if (err) {
+        console.error('Count error:', err);
+        return res.status(500).json({ error: 'Failed to get count' });
+      }
+
+      res.json({ 
+        history, 
+        pagination: { 
+          page, 
+          limit, 
+          total: countResult.total, 
+          totalPages: Math.ceil(countResult.total / limit) 
+        } 
+      });
+    });
+  });
 });
 
-// Save search preferences
+// Delete multiple analyses
+app.delete('/api/user/history/bulk', authenticateToken, (req, res) => {
+  const { analysisIds } = req.body;
+  
+  if (!analysisIds || !Array.isArray(analysisIds) || analysisIds.length === 0) {
+    return res.status(400).json({ error: 'Analysis IDs array required' });
+  }
+
+  // Security: Ensure user can only delete their own analyses
+  const placeholders = analysisIds.map(() => '?').join(',');
+  const query = `DELETE FROM user_analyses WHERE user_id = ? AND id IN (${placeholders})`;
+  const params = [req.user.userId, ...analysisIds];
+
+  db.run(query, params, function(err) {
+    if (err) {
+      console.error('Bulk delete error:', err);
+      return res.status(500).json({ error: 'Failed to delete analyses' });
+    }
+    
+    res.json({ 
+      success: true, 
+      deletedCount: this.changes,
+      message: `Successfully deleted ${this.changes} analyses` 
+    });
+  });
+});
+
+// Export multiple analyses
+app.post('/api/user/history/export', authenticateToken, (req, res) => {
+  const { analysisIds, format = 'json' } = req.body;
+  
+  if (!analysisIds || !Array.isArray(analysisIds)) {
+    return res.status(400).json({ error: 'Analysis IDs array required' });
+  }
+
+  const placeholders = analysisIds.map(() => '?').join(',');
+  const query = `SELECT * FROM user_analyses WHERE user_id = ? AND id IN (${placeholders}) ORDER BY saved_at DESC`;
+  const params = [req.user.userId, ...analysisIds];
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Export fetch error:', err);
+      return res.status(500).json({ error: 'Failed to fetch analyses for export' });
+    }
+
+    const exportData = {
+      exportInfo: {
+        exportedAt: new Date().toISOString(),
+        version: '1.0',
+        source: 'AI Image Recognition Service',
+        totalAnalyses: rows.length,
+        exportFormat: format
+      },
+      analyses: rows.map(row => ({
+        id: row.id,
+        savedAt: row.saved_at,
+        analysis: JSON.parse(row.analysis_data),
+        imageInfo: JSON.parse(row.image_info)
+      }))
+    };
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="ai-analyses-bulk-${Date.now()}.json"`);
+      res.json(exportData);
+    } else {
+      // You could implement CSV or other formats here
+      res.status(400).json({ error: 'Unsupported export format' });
+    }
+  });
+});
+
+// Get user statistics
+app.get('/api/user/statistics', authenticateToken, (req, res) => {
+  const queries = {
+    totalAnalyses: `SELECT COUNT(*) as count FROM user_analyses WHERE user_id = ?`,
+    analysesByType: `SELECT analysis_data FROM user_analyses WHERE user_id = ?`,
+    recentActivity: `SELECT COUNT(*) as count FROM user_analyses WHERE user_id = ? AND saved_at > ?`
+  };
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  db.get(queries.totalAnalyses, [req.user.userId], (err, totalResult) => {
+    if (err) return res.status(500).json({ error: 'Failed to get statistics' });
+
+    db.get(queries.recentActivity, [req.user.userId, sevenDaysAgo], (err, recentResult) => {
+      if (err) return res.status(500).json({ error: 'Failed to get statistics' });
+
+      db.all(queries.analysesByType, [req.user.userId], (err, typeRows) => {
+        if (err) return res.status(500).json({ error: 'Failed to get statistics' });
+
+        const typeCounts = {};
+        typeRows.forEach(row => {
+          try {
+            const analysis = JSON.parse(row.analysis_data);
+            const type = analysis.analysisType || 'general';
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+          } catch (e) {
+            // Skip invalid entries
+          }
+        });
+
+        res.json({
+          totalAnalyses: totalResult.count,
+          recentActivity: recentResult.count,
+          analysesByType: typeCounts,
+          averagePerWeek: Math.round((recentResult.count / 7) * 10) / 10
+        });
+      });
+    });
+  });
+});
+
 app.post('/api/user/preferences', authenticateToken, (req, res) => {
   const { preferences } = req.body;
   
   db.run(
-    `INSERT OR REPLACE INTO user_preferences (user_id, preferences) 
-     VALUES (?, ?)`,
+    `INSERT OR REPLACE INTO user_preferences (user_id, preferences) VALUES (?, ?)`,
     [req.user.userId, JSON.stringify(preferences)],
     function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to save preferences' });
-      }
+      if (err) return res.status(500).json({ error: 'Failed to save preferences' });
       res.json({ success: true });
     }
   );
 });
 
-// Search endpoint
+// Search
 app.get('/api/search', (req, res) => {
   const query = req.query.q.toLowerCase();
   
   db.all(
-    `SELECT * FROM images WHERE 
-     objects_detected LIKE ? OR text_extracted LIKE ?`,
+    `SELECT * FROM images WHERE objects_detected LIKE ? OR text_extracted LIKE ?`,
     [`%${query}%`, `%${query}%`],
     (err, rows) => {
-      if (err) {
-        return res.status(500).json({ error: 'Search failed' });
-      }
+      if (err) return res.status(500).json({ error: 'Search failed' });
       
       const results = rows.map(row => ({
         id: row.id,
@@ -548,380 +632,15 @@ app.get('/api/search', (req, res) => {
         item.text.some(txt => txt.toLowerCase().includes(query))
       );
 
-      res.json({
-        query: query,
-        results: results,
-        count: results.length
-      });
+      res.json({ query, results, count: results.length });
     }
   );
-});
-
-const PDFDocument = require('pdfkit');
-
-// PDF Export endpoint
-app.get('/api/export/pdf', (req, res) => {
-  try {
-    const { analysisData, imageInfo } = req.query;
-    
-    if (!analysisData || !imageInfo) {
-      return res.status(400).json({ error: 'Analysis data and image info required' });
-    }
-
-    const analysis = JSON.parse(analysisData);
-    const image = JSON.parse(imageInfo);
-
-    // Create PDF document
-    const doc = new PDFDocument();
-    
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-${Date.now()}.pdf"`);
-
-    // Pipe PDF to response
-    doc.pipe(res);
-
-    // PDF Content
-    doc.fontSize(20).font('Helvetica-Bold').text('AI Image Analysis Report', 100, 100);
-    doc.moveDown();
-    
-    // Basic Information
-    doc.fontSize(14).font('Helvetica-Bold').text('Basic Information:');
-    doc.font('Helvetica').fontSize(12);
-    doc.text(`File Name: ${image.originalName}`);
-    doc.text(`File Size: ${(image.size / 1024 / 1024).toFixed(2)} MB`);
-    doc.text(`Analysis Type: ${analysis.analysisType}`);
-    doc.text(`Confidence: ${(parseFloat(analysis.confidence) * 100).toFixed(1)}%`);
-    doc.moveDown();
-
-    // Objects Detected
-    if (analysis.objects.length > 0) {
-      doc.font('Helvetica-Bold').text('Objects Detected:');
-      doc.font('Helvetica');
-      analysis.objects.forEach(obj => {
-        doc.text(`• ${obj}`);
-      });
-      doc.moveDown();
-    }
-
-    // Text Found
-    if (analysis.text.length > 0) {
-      doc.font('Helvetica-Bold').text('Text Found:');
-      doc.font('Helvetica');
-      analysis.text.forEach(txt => {
-        doc.text(`• "${txt}"`);
-      });
-      doc.moveDown();
-    }
-
-    // Faces Detected
-    if (analysis.faces.length > 0) {
-      doc.font('Helvetica-Bold').text('Faces Detected:');
-      doc.font('Helvetica');
-      analysis.faces.forEach((face, index) => {
-        doc.text(`Subject ${index + 1}:`);
-        doc.text(`  Gender: ${face.gender || 'Unknown'}`);
-        doc.text(`  Age: ${face.age}`);
-        doc.text(`  Emotions: ${face.emotions.join(', ')}`);
-        if (face.smile) doc.text(`  ${face.smile}`);
-        if (face.glasses) doc.text(`  ${face.glasses}`);
-      });
-      doc.moveDown();
-    }
-
-    // Additional Insights
-    const additionalFields = ['lighting', 'quality', 'environment', 'activity', 'type', 'appeal', 'setting'];
-    const hasAdditional = additionalFields.some(field => analysis[field]);
-    
-    if (hasAdditional) {
-      doc.font('Helvetica-Bold').text('Additional Insights:');
-      doc.font('Helvetica');
-      additionalFields.forEach(field => {
-        if (analysis[field]) {
-          doc.text(`• ${field.charAt(0).toUpperCase() + field.slice(1)}: ${analysis[field]}`);
-        }
-      });
-      doc.moveDown();
-    }
-
-    // Footer
-    doc.fontSize(10).text(`Generated by AI Image Recognition Service on ${new Date().toLocaleString()}`, 100, doc.page.height - 100);
-
-    // Finalize PDF
-    doc.end();
-
-  } catch (error) {
-    console.error('PDF export error:', error);
-    res.status(500).json({ error: 'Failed to generate PDF' });
-  }
-});
-
-// JSON Export endpoint
-app.get('/api/export/json', (req, res) => {
-  try {
-    const { analysisData, imageInfo } = req.query;
-    
-    if (!analysisData || !imageInfo) {
-      return res.status(400).json({ error: 'Analysis data and image info required' });
-    }
-
-    const analysis = JSON.parse(analysisData);
-    const image = JSON.parse(imageInfo);
-
-    const exportData = {
-      exportInfo: {
-        exportedAt: new Date().toISOString(),
-        version: '1.0',
-        source: 'AI Image Recognition Service'
-      },
-      imageInfo: image,
-      analysis: analysis
-    };
-
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-${Date.now()}.json"`);
-    res.json(exportData);
-
-  } catch (error) {
-    console.error('JSON export error:', error);
-    res.status(500).json({ error: 'Failed to generate JSON export' });
-  }
-});
-
-// CSV Export endpoint
-app.get('/api/export/csv', (req, res) => {
-  try {
-    const { analysisData, imageInfo } = req.query;
-    
-    if (!analysisData || !imageInfo) {
-      return res.status(400).json({ error: 'Analysis data and image info required' });
-    }
-
-    const analysis = JSON.parse(analysisData);
-    const image = JSON.parse(imageInfo);
-
-    let csvContent = 'AI Image Analysis Export\n\n';
-    
-    // Basic Information
-    csvContent += 'Basic Information:\n';
-    csvContent += `File Name,${image.originalName}\n`;
-    csvContent += `File Size (MB),${(image.size / 1024 / 1024).toFixed(2)}\n`;
-    csvContent += `Analysis Type,${analysis.analysisType}\n`;
-    csvContent += `Confidence,${(parseFloat(analysis.confidence) * 100).toFixed(1)}%\n\n`;
-    
-    // Objects
-    csvContent += 'Objects Detected:\n';
-    analysis.objects.forEach(obj => {
-      csvContent += `${obj}\n`;
-    });
-    csvContent += '\n';
-    
-    // Text
-    if (analysis.text.length > 0) {
-      csvContent += 'Text Found:\n';
-      analysis.text.forEach(txt => {
-        csvContent += `"${txt}"\n`;
-      });
-      csvContent += '\n';
-    }
-    
-    // Faces
-    if (analysis.faces.length > 0) {
-      csvContent += 'Faces Detected:\n';
-      csvContent += 'Subject,Gender,Age,Emotions,Additional\n';
-      analysis.faces.forEach((face, index) => {
-        const additional = [];
-        if (face.smile) additional.push(face.smile);
-        if (face.glasses) additional.push(face.glasses);
-        if (face.pose) additional.push(`Pose: ${face.pose}`);
-        if (face.expression) additional.push(`Expression: ${face.expression}`);
-        
-        csvContent += `Subject ${index + 1},${face.gender || ''},${face.age},${face.emotions.join('; ')},${additional.join('; ')}\n`;
-      });
-      csvContent += '\n';
-    }
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-${Date.now()}.csv"`);
-    res.send(csvContent);
-
-  } catch (error) {
-    console.error('CSV export error:', error);
-    res.status(500).json({ error: 'Failed to generate CSV export' });
-  }
-});
-
-const { createCanvas, loadImage } = require('canvas');
-
-// Image with Overlays export endpoint
-app.get('/api/export/image-overlay', async (req, res) => {
-  try {
-    const { analysisData, imageInfo } = req.query;
-    
-    if (!analysisData || !imageInfo) {
-      return res.status(400).json({ error: 'Analysis data and image info required' });
-    }
-
-    const analysis = JSON.parse(analysisData);
-    const image = JSON.parse(imageInfo);
-
-    // Load the original image
-    const originalImage = await loadImage(`./uploads/${image.storedName}`);
-    
-    // Create canvas with same dimensions
-    const canvas = createCanvas(originalImage.width, originalImage.height);
-    const ctx = canvas.getContext('2d');
-
-    // Draw original image
-    ctx.drawImage(originalImage, 0, 0);
-
-    // Set overlay styles
-    ctx.strokeStyle = '#ff0000';
-    ctx.fillStyle = '#ff0000';
-    ctx.lineWidth = 3;
-    ctx.font = 'bold 20px Arial';
-
-    // Mock bounding box coordinates (in a real AI, these would come from the analysis)
-    const generateMockBoundingBoxes = (objects, imageWidth, imageHeight) => {
-      const boxes = [];
-      const usedAreas = [];
-      
-      objects.forEach((object, index) => {
-        // Generate random but non-overlapping bounding boxes
-        let x, y, width, height;
-        let attempts = 0;
-        
-        do {
-          width = Math.min(200 + Math.random() * 150, imageWidth * 0.4);
-          height = Math.min(100 + Math.random() * 100, imageHeight * 0.3);
-          x = Math.random() * (imageWidth - width);
-          y = Math.random() * (imageHeight - height);
-          attempts++;
-        } while (
-          attempts < 50 && 
-          usedAreas.some(area => 
-            x < area.x + area.width && 
-            x + width > area.x && 
-            y < area.y + area.height && 
-            y + height > area.y
-          )
-        );
-
-        if (attempts < 50) {
-          boxes.push({ object, x, y, width, height });
-          usedAreas.push({ x, y, width, height });
-        }
-      });
-
-      return boxes;
-    };
-
-    // Generate bounding boxes for objects
-    const boundingBoxes = generateMockBoundingBoxes(
-      analysis.objects || [], 
-      originalImage.width, 
-      originalImage.height
-    );
-
-    // Draw bounding boxes and labels
-    boundingBoxes.forEach((box, index) => {
-      const { object, x, y, width, height } = box;
-
-      // Draw bounding box
-      ctx.strokeRect(x, y, width, height);
-      
-      // Draw label background
-      const text = `${object}`;
-      const textMetrics = ctx.measureText(text);
-      const textWidth = textMetrics.width + 20;
-      const textHeight = 30;
-      
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-      ctx.fillRect(x, y - textHeight, textWidth, textHeight);
-      
-      // Draw label text
-      ctx.fillStyle = 'white';
-      ctx.fillText(text, x + 10, y - 10);
-    });
-
-    // Draw text detection areas (if text was found)
-    if (analysis.text && analysis.text.length > 0) {
-      ctx.strokeStyle = '#00ff00';
-      ctx.fillStyle = '#00ff00';
-      
-      analysis.text.forEach((text, index) => {
-        const x = 50 + (index * 300) % (originalImage.width - 300);
-        const y = 100 + Math.floor((index * 300) / originalImage.width) * 100;
-        const width = 250;
-        const height = 40;
-
-        // Draw text bounding box
-        ctx.strokeRect(x, y, width, height);
-        
-        // Draw text label background
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-        ctx.fillRect(x, y - 30, width, 30);
-        
-        // Draw text label
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 16px Arial';
-        const displayText = text.length > 20 ? text.substring(0, 20) + '...' : text;
-        ctx.fillText('📝 ' + displayText, x + 10, y - 10);
-      });
-    }
-
-    // Draw face detection areas (if faces were found)
-    if (analysis.faces && analysis.faces.length > 0) {
-      ctx.strokeStyle = '#0000ff';
-      ctx.fillStyle = '#0000ff';
-      
-      analysis.faces.forEach((face, index) => {
-        const x = 100 + (index * 200) % (originalImage.width - 200);
-        const y = originalImage.height - 200 - (Math.floor((index * 200) / originalImage.width) * 150);
-        const width = 150;
-        const height = 150;
-
-        // Draw face bounding box
-        ctx.strokeRect(x, y, width, height);
-        
-        // Draw face info background
-        ctx.fillStyle = 'rgba(0, 0, 255, 0.8)';
-        const infoHeight = 80;
-        ctx.fillRect(x, y + height, width, infoHeight);
-        
-        // Draw face info
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 14px Arial';
-        ctx.fillText(`👤 ${face.gender || 'Person'}`, x + 10, y + height + 20);
-        ctx.fillText(`🎂 ${face.age || 'Unknown'}`, x + 10, y + height + 40);
-        ctx.fillText(`😊 ${face.emotions?.join(', ') || 'Neutral'}`, x + 10, y + height + 60);
-      });
-    }
-
-    // Add watermark
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText('AI Analysis Overlay', 20, originalImage.height - 20);
-
-    // Send the image
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-overlay-${Date.now()}.png"`);
-    
-    const buffer = canvas.toBuffer('image/png');
-    res.send(buffer);
-
-  } catch (error) {
-    console.error('Image overlay export error:', error);
-    res.status(500).json({ error: 'Failed to generate image overlay' });
-  }
 });
 
 // Get all images
 app.get('/api/images', (req, res) => {
   db.all('SELECT * FROM images ORDER BY upload_date DESC', (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+    if (err) return res.status(500).json({ error: 'Database error' });
     
     const images = rows.map(row => ({
       id: row.id,
@@ -937,13 +656,202 @@ app.get('/api/images', (req, res) => {
   });
 });
 
-// Start server
+// Export Endpoints
+app.get('/api/export/pdf', (req, res) => {
+  try {
+    const { analysisData, imageInfo } = req.query;
+    if (!analysisData || !imageInfo) return res.status(400).json({ error: 'Analysis data and image info required' });
+
+    const analysis = JSON.parse(analysisData);
+    const image = JSON.parse(imageInfo);
+
+    const doc = new PDFDocument();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-${Date.now()}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(20).font('Helvetica-Bold').text('AI Image Analysis Report', 100, 100);
+    doc.moveDown();
+    
+    doc.fontSize(14).font('Helvetica-Bold').text('Basic Information:');
+    doc.font('Helvetica').fontSize(12);
+    doc.text(`File Name: ${image.originalName}`);
+    doc.text(`File Size: ${(image.size / 1024 / 1024).toFixed(2)} MB`);
+    doc.text(`Analysis Type: ${analysis.analysisType}`);
+    doc.text(`Confidence: ${(parseFloat(analysis.confidence) * 100).toFixed(1)}%`);
+    doc.moveDown();
+
+    if (analysis.objects.length > 0) {
+      doc.font('Helvetica-Bold').text('Objects Detected:');
+      doc.font('Helvetica');
+      analysis.objects.forEach(obj => doc.text(`• ${obj}`));
+      doc.moveDown();
+    }
+
+    if (analysis.text.length > 0) {
+      doc.font('Helvetica-Bold').text('Text Found:');
+      doc.font('Helvetica');
+      analysis.text.forEach(txt => doc.text(`• "${txt}"`));
+      doc.moveDown();
+    }
+
+    if (analysis.faces.length > 0) {
+      doc.font('Helvetica-Bold').text('Faces Detected:');
+      doc.font('Helvetica');
+      analysis.faces.forEach((face, index) => {
+        doc.text(`Subject ${index + 1}:`);
+        doc.text(`  Gender: ${face.gender || 'Unknown'}`);
+        doc.text(`  Age: ${face.age}`);
+        doc.text(`  Emotions: ${face.emotions.join(', ')}`);
+        if (face.smile) doc.text(`  ${face.smile}`);
+        if (face.glasses) doc.text(`  ${face.glasses}`);
+      });
+      doc.moveDown();
+    }
+
+    const additionalFields = ['lighting', 'quality', 'environment', 'activity', 'type', 'appeal', 'setting'];
+    const hasAdditional = additionalFields.some(field => analysis[field]);
+    
+    if (hasAdditional) {
+      doc.font('Helvetica-Bold').text('Additional Insights:');
+      doc.font('Helvetica');
+      additionalFields.forEach(field => {
+        if (analysis[field]) doc.text(`• ${field.charAt(0).toUpperCase() + field.slice(1)}: ${analysis[field]}`);
+      });
+    }
+
+    doc.fontSize(10).text(`Generated by AI Image Recognition Service on ${new Date().toLocaleString()}`, 100, doc.page.height - 100);
+    doc.end();
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+app.get('/api/export/json', (req, res) => {
+  try {
+    const { analysisData, imageInfo } = req.query;
+    if (!analysisData || !imageInfo) return res.status(400).json({ error: 'Analysis data and image info required' });
+
+    const exportData = {
+      exportInfo: { exportedAt: new Date().toISOString(), version: '1.0', source: 'AI Image Recognition Service' },
+      imageInfo: JSON.parse(imageInfo),
+      analysis: JSON.parse(analysisData)
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-${Date.now()}.json"`);
+    res.json(exportData);
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate JSON' });
+  }
+});
+
+app.get('/api/export/csv', (req, res) => {
+  try {
+    const { analysisData, imageInfo } = req.query;
+    if (!analysisData || !imageInfo) return res.status(400).json({ error: 'Analysis data and image info required' });
+
+    const analysis = JSON.parse(analysisData);
+    const image = JSON.parse(imageInfo);
+
+    let csvContent = 'AI Image Analysis Export\n\n';
+    csvContent += 'Basic Information:\n';
+    csvContent += `File Name,${image.originalName}\n`;
+    csvContent += `File Size (MB),${(image.size / 1024 / 1024).toFixed(2)}\n`;
+    csvContent += `Analysis Type,${analysis.analysisType}\n`;
+    csvContent += `Confidence,${(parseFloat(analysis.confidence) * 100).toFixed(1)}%\n\n`;
+    
+    csvContent += 'Objects Detected:\n';
+    analysis.objects.forEach(obj => csvContent += `${obj}\n`);
+    csvContent += '\n';
+    
+    if (analysis.text.length > 0) {
+      csvContent += 'Text Found:\n';
+      analysis.text.forEach(txt => csvContent += `"${txt}"\n`);
+      csvContent += '\n';
+    }
+    
+    if (analysis.faces.length > 0) {
+      csvContent += 'Faces Detected:\n';
+      csvContent += 'Subject,Gender,Age,Emotions,Additional\n';
+      analysis.faces.forEach((face, index) => {
+        const additional = [];
+        if (face.smile) additional.push(face.smile);
+        if (face.glasses) additional.push(face.glasses);
+        if (face.pose) additional.push(`Pose: ${face.pose}`);
+        if (face.expression) additional.push(`Expression: ${face.expression}`);
+        csvContent += `Subject ${index + 1},${face.gender || ''},${face.age},${face.emotions.join('; ')},${additional.join('; ')}\n`;
+      });
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-${Date.now()}.csv"`);
+    res.send(csvContent);
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate CSV' });
+  }
+});
+
+app.get('/api/export/image-overlay', async (req, res) => {
+  try {
+    const { analysisData, imageInfo } = req.query;
+    if (!analysisData || !imageInfo) return res.status(400).json({ error: 'Analysis data and image info required' });
+
+    const analysis = JSON.parse(analysisData);
+    const image = JSON.parse(imageInfo);
+    const originalImage = await loadImage(`./uploads/${image.storedName}`);
+    
+    const canvas = createCanvas(originalImage.width, originalImage.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(originalImage, 0, 0);
+
+    // Draw bounding boxes and labels
+    ctx.strokeStyle = '#ff0000';
+    ctx.fillStyle = '#ff0000';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 20px Arial';
+
+    const generateMockBoundingBoxes = (objects, imageWidth, imageHeight) => {
+      const boxes = [];
+      objects.forEach((object) => {
+        const width = Math.min(200 + Math.random() * 150, imageWidth * 0.4);
+        const height = Math.min(100 + Math.random() * 100, imageHeight * 0.3);
+        const x = Math.random() * (imageWidth - width);
+        const y = Math.random() * (imageHeight - height);
+        boxes.push({ object, x, y, width, height });
+      });
+      return boxes;
+    };
+
+    const boundingBoxes = generateMockBoundingBoxes(analysis.objects || [], originalImage.width, originalImage.height);
+    boundingBoxes.forEach((box) => {
+      const { object, x, y, width, height } = box;
+      ctx.strokeRect(x, y, width, height);
+      const textMetrics = ctx.measureText(object);
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+      ctx.fillRect(x, y - 30, textMetrics.width + 20, 30);
+      ctx.fillStyle = 'white';
+      ctx.fillText(object, x + 10, y - 10);
+    });
+
+    // Add watermark
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText('AI Analysis Overlay', 20, originalImage.height - 20);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="ai-analysis-overlay-${Date.now()}.png"`);
+    res.send(canvas.toBuffer('image/png'));
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate image overlay' });
+  }
+});
+
+// Start Server
 app.listen(PORT, () => {
   console.log(`🚀 AI Image Service running on http://localhost:${PORT}`);
-  console.log(`📁 Uploads directory: ./uploads/`);
-  console.log(`💾 Database: ./images.db`);
-  console.log(`📊 API Endpoints:`);
-  console.log(`   POST http://localhost:${PORT}/api/analyze`);
-  console.log(`   GET  http://localhost:${PORT}/api/search?q=query`);
-  console.log(`   GET  http://localhost:${PORT}/api/images`);
 });
