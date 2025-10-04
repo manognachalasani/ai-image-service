@@ -6,11 +6,12 @@ import UserProfile from './components/UserProfile';
 import { AuthProvider } from './context/AuthContext';
 import { AnalysisResult, ImageInfo } from './services/api';
 import UserHistory from './components/UserHistory';
+import DiscoverGallery from './components/DiscoverGallery';
 
 function AppContent() {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
   const [currentImage, setCurrentImage] = useState<ImageInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<'analyze' | 'gallery' | 'history'>('analyze');
+  const [activeTab, setActiveTab] = useState<'analyze' | 'discover' | 'history'>('analyze');
 
   const handleAnalysisComplete = (analysis: AnalysisResult, imageInfo: ImageInfo) => {
     setCurrentAnalysis(analysis);
@@ -30,19 +31,19 @@ function AppContent() {
             onClick={() => setActiveTab('analyze')}
             className={`nav-button ${activeTab === 'analyze' ? 'active' : ''}`}
           >
-            Analyze
+            🧪 Analyze
           </button>
           <button
             onClick={() => setActiveTab('history')}
             className={`nav-button ${activeTab === 'history' ? 'active' : ''}`}
           >
-            My History
+            📚 My History
           </button>
           <button
-            onClick={() => setActiveTab('gallery')}
-            className={`nav-button ${activeTab === 'gallery' ? 'active' : ''}`}
+            onClick={() => setActiveTab('discover')}
+            className={`nav-button ${activeTab === 'discover' ? 'active' : ''}`}
           >
-            Gallery
+            🌍 Discover
           </button>
         </nav>
         <UserProfile />
@@ -79,16 +80,8 @@ function AppContent() {
           <UserHistory />
         )}
 
-        {activeTab === 'gallery' && (
-          <div className="card">
-            <h2>Image Gallery</h2>
-            <p>Search and browse analyzed images. (Coming soon for registered users!)</p>
-            <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '6px' }}>
-              <p style={{ fontSize: '0.875rem', color: '#0369a1' }}>
-                <strong>🔒 Premium Feature:</strong> Register to save your personal image gallery and analysis history!
-              </p>
-            </div>
-          </div>
+        {activeTab === 'discover' && (
+          <DiscoverGallery />
         )}
       </main>
     </div>
