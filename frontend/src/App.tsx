@@ -5,11 +5,12 @@ import AnalysisResults from './components/AnalysisResults';
 import UserProfile from './components/UserProfile';
 import { AuthProvider } from './context/AuthContext';
 import { AnalysisResult, ImageInfo } from './services/api';
+import UserHistory from './components/UserHistory';
 
 function AppContent() {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
   const [currentImage, setCurrentImage] = useState<ImageInfo | null>(null);
-  const [activeTab, setActiveTab] = useState<'analyze' | 'gallery'>('analyze');
+  const [activeTab, setActiveTab] = useState<'analyze' | 'gallery' | 'history'>('analyze');
 
   const handleAnalysisComplete = (analysis: AnalysisResult, imageInfo: ImageInfo) => {
     setCurrentAnalysis(analysis);
@@ -30,6 +31,12 @@ function AppContent() {
             className={`nav-button ${activeTab === 'analyze' ? 'active' : ''}`}
           >
             Analyze
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`nav-button ${activeTab === 'history' ? 'active' : ''}`}
+          >
+            My History
           </button>
           <button
             onClick={() => setActiveTab('gallery')}
@@ -66,6 +73,10 @@ function AppContent() {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'history' && (
+          <UserHistory />
         )}
 
         {activeTab === 'gallery' && (

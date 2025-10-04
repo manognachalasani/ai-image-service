@@ -50,6 +50,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(false);
   }, []);
 
+  const getAuthHeaders = (): HeadersInit => {
+  const token = localStorage.getItem('authToken');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
   const apiRequest = async (url: string, options: RequestInit) => {
     try {
       console.log(`🔄 Making API request to: ${url}`);
@@ -57,6 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           ...options.headers,
         },
       });
