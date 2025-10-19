@@ -42,7 +42,7 @@ const UserProfile: React.FC = () => {
             border: '1px solid #e2e8f0'
           }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '1.125rem', color: '#3b82f6' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '1.125rem', color: '#d73bf6ff' }}>
                 {stats.totalAnalyses}
               </div>
               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Analyses</div>

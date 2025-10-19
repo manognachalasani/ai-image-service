@@ -5,6 +5,7 @@ const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const sharp = require('sharp');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const PDFDocument = require('pdfkit');
 const { createCanvas, loadImage } = require('canvas');
 require('dotenv').config();
@@ -12,30 +13,30 @@ require('dotenv').config();
 const app = express();
 const PORT = 5000;
 
-// Middleware
+// middleware
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// Auth Middleware
+// auth middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Access token required' });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET || "fallback_secret_key_2024", (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid or expired token' });
     req.user = user;
     next();
   });
 };
 
-// Database Setup
+// database Setup
 const db = new sqlite3.Database('./images.db', (err) => {
   if (err) {
     console.error('Database connection error:', err.message);
   } else {
-    console.log('✅ Connected to SQLite database');
+    console.log('Connected to SQLite database');
     initializeDatabase();
   }
 });
@@ -101,14 +102,12 @@ const isAzureConfigured = azureConfig.key && azureConfig.endpoint &&
                          azureConfig.key !== 'your-azure-key-here' && 
                          azureConfig.endpoint !== 'your-azure-endpoint-here';
 
-console.log('🔧 Azure Configuration Status:', isAzureConfigured ? '✅ Configured' : '❌ Not Configured');
+console.log('Azure Configuration Status:', isAzureConfigured ? 'Configured' : 'Not Configured');
 
 // Azure Analysis Function
 const analyzeImageWithAzure = async (imagePath) => {
   try {
     console.log('🔍 Analyzing image with Azure Computer Vision...');
-    
-    // FIX: Use fs.readFileSync to create a proper stream
     const fs = require('fs');
     const imageBuffer = fs.readFileSync(imagePath);
     
@@ -127,15 +126,15 @@ const analyzeImageWithAzure = async (imagePath) => {
       language: 'en'
     });
 
-    console.log('✅ Azure analysis completed');
+    console.log('Azure analysis completed');
     return formatAzureAnalysis(analysis);
     
   } catch (error) {
-    console.error('❌ Azure analysis failed:', error.message);
+    console.error('Azure analysis failed:', error.message);
   }
 };
 
-// Format Azure response to match your existing structure
+// Format Azure response to match existing structure
 const formatAzureAnalysis = (azureResult) => {
   const analysis = {
     objects: azureResult.objects?.map(obj => obj.object) || [],
@@ -143,7 +142,6 @@ const formatAzureAnalysis = (azureResult) => {
     faces: azureResult.faces?.map(face => ({
       age: `${face.age}`,
       gender: face.gender.charAt(0).toUpperCase() + face.gender.slice(1),
-      emotions: [] // Azure doesn't provide emotions in basic analysis
     })) || [],
     analysisType: getAnalysisTypeFromAzure(azureResult),
     confidence: azureResult.description?.captions?.[0]?.confidence?.toFixed(2) || '0.85',
@@ -208,7 +206,7 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
 
     if (token) {
       try {
-        const user = jwt.verify(token, JWT_SECRET);
+        const user = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret_key_2024");
         userId = user.userId;
       } catch (err) {}
     }
@@ -316,7 +314,7 @@ app.post('/api/auth/register', async (req, res) => {
       db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hashedPassword], function(err) {
         if (err) return res.status(500).json({ error: 'Error creating user' });
 
-        const token = jwt.sign({ userId: this.lastID }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ userId: this.lastID }, process.env.JWT_SECRET || "fallback_secret_key_2024", { expiresIn: '7d' });
         res.json({ success: true, token, user: { id: this.lastID, username, email } });
       });
     });
@@ -336,7 +334,7 @@ app.post('/api/auth/login', (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ success: true, token, user: { id: user.id, username: user.username, email: user.email } });
   });
 });
@@ -512,7 +510,6 @@ app.post('/api/user/history/export', authenticateToken, (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="ai-analyses-bulk-${Date.now()}.json"`);
       res.json(exportData);
     } else {
-      // You could implement CSV or other formats here
       res.status(400).json({ error: 'Unsupported export format' });
     }
   });
@@ -757,6 +754,7 @@ app.get('/api/export/csv', (req, res) => {
     res.status(500).json({ error: 'Failed to generate CSV' });
   }
 });
+
 
 // Start Server
 app.listen(PORT, () => {

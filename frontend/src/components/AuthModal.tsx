@@ -117,7 +117,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
             border: 'none',
             fontSize: '24px',
             cursor: 'pointer',
-            color: '#6b7280',
+            color: '#b97cffff',
             width: '30px',
             height: '30px',
             display: 'flex',
@@ -141,8 +141,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
               border: 'none',
               background: 'none',
               fontWeight: activeTab === 'login' ? 'bold' : 'normal',
-              color: activeTab === 'login' ? '#2563eb' : '#6b7280',
-              borderBottom: activeTab === 'login' ? '2px solid #2563eb' : 'none',
+              color: activeTab === 'login' ? '#9f25ebff' : '#9ba9c6ff',
+              borderBottom: activeTab === 'login' ? '2px solid #9525ebff' : 'none',
               marginBottom: '-2px',
               cursor: 'pointer',
               flex: 1
@@ -157,8 +157,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
               border: 'none',
               background: 'none',
               fontWeight: activeTab === 'register' ? 'bold' : 'normal',
-              color: activeTab === 'register' ? '#2563eb' : '#6b7280',
-              borderBottom: activeTab === 'register' ? '2px solid #2563eb' : 'none',
+              color: activeTab === 'register' ? '#a625ebff' : '#6b7280',
+              borderBottom: activeTab === 'register' ? '2px solid #a225ebff' : 'none',
               marginBottom: '-2px',
               cursor: 'pointer',
               flex: 1
@@ -171,7 +171,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
         {/* Forms */}
         {activeTab === 'login' ? (
           <form onSubmit={handleLogin}>
-            <h3 style={{ marginBottom: '1.5rem', textAlign: 'center', color: '#1f2937' }}>
+            <h3 style={{ marginBottom: '1.5rem', textAlign: 'center', color: '#12171eff' }}>
               Welcome Back
             </h3>
             
@@ -186,7 +186,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
                 style={{
                   width: '100%',
                   padding: '0.75rem',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid #ae00ffff',
                   borderRadius: '6px',
                   fontSize: '1rem',
                   boxSizing: 'border-box'
@@ -234,7 +234,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                background: '#2563eb',
+                background: '#b325ebff',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
@@ -255,7 +255,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#2563eb',
+                  color: '#9d40e5ff',
                   cursor: 'pointer',
                   textDecoration: 'underline'
                 }}
@@ -266,7 +266,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
           </form>
         ) : (
           <form onSubmit={handleRegister}>
-            <h3 style={{ marginBottom: '1.5rem', textAlign: 'center', color: '#1f2937' }}>
+            <h3 style={{ marginBottom: '1.5rem', textAlign: 'center', color: '#aa00ffff' }}>
               Create Account
             </h3>
             
@@ -367,7 +367,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                background: '#059669',
+                background: '#8010dbff',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
@@ -388,7 +388,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'lo
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#2563eb',
+                  color: '#9925ebff',
                   cursor: 'pointer',
                   textDecoration: 'underline'
                 }}

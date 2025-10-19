@@ -77,7 +77,7 @@ export interface UploadResponse {
   autoSaved?: boolean; // New field from backend
 }
 
-// NEW: User Analysis History Types
+// User Analysis History Types
 export interface UserAnalysis {
   id: number;
   analysis: AnalysisResult;
@@ -109,7 +109,7 @@ export interface UserStatistics {
   averagePerWeek: number;
 }
 
-// NEW: Export Types
+// Export Types
 export interface ExportOptions {
   analysisData: AnalysisResult;
   imageInfo: ImageInfo;
@@ -177,7 +177,7 @@ export const getUserAnalysisHistory = async (
   return response.json();
 };
 
-// NEW: Get user statistics
+// Get user statistics
 export const getUserStatistics = async (): Promise<UserStatistics> => {
   const response = await fetch(`${API_BASE}/user/statistics`, {
     headers: {
@@ -193,7 +193,7 @@ export const getUserStatistics = async (): Promise<UserStatistics> => {
   return response.json();
 };
 
-// NEW: Save user preferences
+// Save user preferences
 export const saveUserPreferences = async (preferences: any) => {
   const response = await fetch(`${API_BASE}/user/preferences`, {
     method: 'POST',
@@ -211,7 +211,7 @@ export const saveUserPreferences = async (preferences: any) => {
   return response.json();
 };
 
-// NEW: Export analysis
+// Export analysis
 export const exportAnalysis = async (
   analysisData: AnalysisResult, 
   imageInfo: ImageInfo, 
@@ -237,7 +237,7 @@ export const exportAnalysis = async (
   }
 };
 
-// NEW: Bulk delete analyses
+// Bulk delete analyses
 export const bulkDeleteAnalyses = async (analysisIds: number[]) => {
   const response = await fetch(`${API_BASE}/user/history/bulk`, {
     method: 'DELETE',
@@ -255,7 +255,7 @@ export const bulkDeleteAnalyses = async (analysisIds: number[]) => {
   return response.json();
 };
 
-// NEW: Bulk export analyses
+// Bulk export analyses
 export const bulkExportAnalyses = async (analysisIds: number[], format: string = 'json') => {
   const response = await fetch(`${API_BASE}/user/history/export`, {
     method: 'POST',

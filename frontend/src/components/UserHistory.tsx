@@ -98,7 +98,7 @@ const UserHistory: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-        <h2>🔐 Sign In Required</h2>
+        <h2>Oh no! Sign In Required</h2>
         <p>Please sign in to view your analysis history.</p>
       </div>
     );
@@ -138,7 +138,7 @@ const UserHistory: React.FC = () => {
               className="nav-button"
               style={{
                 padding: '0.5rem 1rem',
-                background: hasPrevious ? '#3b82f6' : '#9ca3af',
+                background: hasPrevious ? '#3bbef6ff' : '#9cafa1ff',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
@@ -158,7 +158,7 @@ const UserHistory: React.FC = () => {
               className="nav-button"
               style={{
                 padding: '0.5rem 1rem',
-                background: hasNext ? '#3b82f6' : '#9ca3af',
+                background: hasNext ? '#3bbef6ff' : '#9cafa1ff',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
@@ -187,7 +187,7 @@ const UserHistory: React.FC = () => {
     <div className="user-history">
       <div className="history-header">
         <div>
-          <h1>📚 My Analysis History</h1>
+          <h1>My Analysis History</h1>
           <p>Click on any analysis to view full details</p>
         </div>
         
@@ -204,7 +204,7 @@ const UserHistory: React.FC = () => {
               cursor: 'pointer'
             }}
           >
-            🗑️ Delete Selected ({selectedItems.length})
+            Delete Selected ({selectedItems.length})
           </button>
         )}
       </div>
@@ -228,7 +228,7 @@ const UserHistory: React.FC = () => {
           type="submit"
           style={{
             padding: '0.75rem 1.5rem',
-            background: '#3b82f6',
+            background: '#3bbef6ff',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
@@ -236,7 +236,7 @@ const UserHistory: React.FC = () => {
             marginLeft: '0.5rem'
           }}
         >
-          🔍 Search
+          Search
         </button>
         {searchTerm && (
           <button 
@@ -248,7 +248,7 @@ const UserHistory: React.FC = () => {
             }}
             style={{
               padding: '0.75rem 1rem',
-              background: '#6b7280',
+              background: '#6b7280ff',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -416,13 +416,13 @@ const UserHistory: React.FC = () => {
         }
         
         .history-card:hover {
-          border-color: #3b82f6;
+          border-color: #3bbef6ff;
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         
         .history-card.selected {
-          border-color: #3b82f6;
+          border-color: #3bbef6ff;
           background: #f0f9ff;
         }
         
@@ -462,7 +462,7 @@ const UserHistory: React.FC = () => {
         }
         
         .type-badge {
-          background: #3b82f6;
+          background: #3bbef6ff;
           color: white;
           text-transform: capitalize;
         }
@@ -480,7 +480,7 @@ const UserHistory: React.FC = () => {
         .confidence-bar {
           width: 100%;
           height: 6px;
-          background: #e5e7eb;
+          background: #0f1011ff;
           border-radius: 3px;
           overflow: hidden;
         }
@@ -510,7 +510,7 @@ const UserHistory: React.FC = () => {
         }
         
         .click-hint small {
-          color: #3b82f6;
+          color: #3bbef6ff;
           font-style: italic;
         }
         
@@ -527,7 +527,7 @@ const UserHistory: React.FC = () => {
           align-items: center;
           margin-bottom: 2rem;
           padding-bottom: 1rem;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid #0c0d0eff;
         }
         
         .navigation-controls {
@@ -551,7 +551,7 @@ const UserHistory: React.FC = () => {
         
         .pagination-btn {
           padding: 0.5rem 1rem;
-          border: 1px solid #d1d5db;
+          border: 1px solid #000000ff;
           background: white;
           border-radius: 6px;
           cursor: pointer;
@@ -563,7 +563,7 @@ const UserHistory: React.FC = () => {
         }
         
         .pagination-btn:hover:not(:disabled) {
-          background: #f3f4f6;
+          background: #020303ff;
         }
       `}</style>
     </div>

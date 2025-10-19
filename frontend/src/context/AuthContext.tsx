@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const apiRequest = async (url: string, options: RequestInit) => {
     try {
-      console.log(`🔄 Making API request to: ${url}`);
+      console.log(`Making API request to: ${url}`);
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
 
-      console.log(`📡 Response status: ${response.status}`);
+      console.log(`Response status: ${response.status}`);
 
       if (!response.ok) {
         // Check if it's a server error (5xx) or client error (4xx)
@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      console.log('🔐 Attempting login...');
+      console.log('Attempting login...');
       const data = await apiRequest('http://localhost:5000/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
@@ -108,17 +108,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('userData', JSON.stringify(data.user));
         setUser(data.user);
-        console.log('✅ Login successful');
+        console.log('Login successful');
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('Login error:', error);
       throw error;
     }
   };
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      console.log('👤 Attempting registration...');
+      console.log('Attempting registration...');
       const data = await apiRequest('http://localhost:5000/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({ username, email, password }),
@@ -128,10 +128,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('userData', JSON.stringify(data.user));
         setUser(data.user);
-        console.log('✅ Registration successful');
+        console.log('Registration successful');
       }
     } catch (error) {
-      console.error('❌ Registration error:', error);
+      console.error('Registration error:', error);
       throw error;
     }
   };
@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     setUser(null);
-    console.log('🚪 Logged out');
+    console.log('Logged out');
   };
 
   const value: AuthContextType = {

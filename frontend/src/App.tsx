@@ -23,27 +23,27 @@ function AppContent() {
     <div className="app-container">
       <header className="header">
         <div className="logo">
-          <span>🤖</span>
-          AI Image Recognition
+          <span></span>
+          AI Image Analysis Service
         </div>
         <nav className="nav-tabs">
           <button
             onClick={() => setActiveTab('analyze')}
             className={`nav-button ${activeTab === 'analyze' ? 'active' : ''}`}
           >
-            🧪 Analyze
+            <b>Analyze</b>
           </button>
           <button
             onClick={() => setActiveTab('history')}
             className={`nav-button ${activeTab === 'history' ? 'active' : ''}`}
           >
-            📚 My History
+            <b>My History</b>
           </button>
           <button
             onClick={() => setActiveTab('discover')}
             className={`nav-button ${activeTab === 'discover' ? 'active' : ''}`}
           >
-            🌍 Discover
+            <b>Discover</b>
           </button>
         </nav>
         <UserProfile />
@@ -64,9 +64,9 @@ function AppContent() {
               ) : (
                 <div className="card">
                   <h2>Analysis Results</h2>
-                  <p>Upload an image to see AI analysis results here.</p>
+                  <p>AI is waiting for you to upload an image...hurry up!</p>
                   <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '6px' }}>
-                    <p style={{ fontSize: '0.875rem', color: '#0369a1' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#5d03a1ff' }}>
                       <strong>💡 Tip:</strong> Register to save your analysis history now!
                     </p>
                   </div>

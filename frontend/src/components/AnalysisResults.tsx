@@ -18,7 +18,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
 }) => {
   const { isAuthenticated } = useAuth();
 
-  // safe helper functions to handle undefined values
+  // handling undefined values
   const safeJoin = (array: any[] | undefined, separator: string = ', '): string => {
     if (!array || !Array.isArray(array)) return 'None';
     return array.join(separator);
@@ -28,12 +28,12 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
     return obj && obj[key] ? String(obj[key]) : fallback;
   };
 
-  // get analysis quality indicator
+  // analysis quality indicator
   const getQualityColor = (quality: string) => {
     const qualityLower = quality?.toLowerCase() || 'good';
     switch (qualityLower) {
       case 'excellent': return '#10b981';
-      case 'good': return '#3b82f6';
+      case 'good': return '#14acf9ff';
       case 'average': return '#f59e0b';
       case 'high quality': return '#10b981';
       case 'clear focus': return '#10b981';
@@ -45,14 +45,13 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-        <h2>🤖 AI Analysis Results</h2>
-        
-        {/* Auto-save indicator and analysis ID */}
+        <h2>Here are the results after AI analyzed your image!</h2>
+
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {isAuthenticated && autoSaved && (
             <span 
               style={{ 
-                background: '#10b981', 
+                background: '#10b964ff', 
                 color: 'white', 
                 padding: '0.25rem 0.75rem', 
                 borderRadius: '20px', 
@@ -60,13 +59,13 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
                 fontWeight: 'bold'
               }}
             >
-              ✅ Auto-saved
+              Auto-saved
             </span>
           )}
           {analysisId && (
             <span 
               style={{ 
-                background: '#3b82f6', 
+                background: '#9a9fe4ff', 
                 color: 'white', 
                 padding: '0.25rem 0.75rem', 
                 borderRadius: '20px', 
@@ -79,7 +78,6 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
         </div>
       </div>
 
-      {/* Export Options - Use without onExport prop since it handles exports internally */}
       <ExportOptions 
         analysis={analysis} 
         imageInfo={imageInfo} 
@@ -96,21 +94,20 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
               height: '200px',
               objectFit: 'cover',
               borderRadius: '8px', 
-              border: '2px solid #e5e7eb' 
+              border: '2px solid #000000ff' 
             }}
           />
-          <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+          <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#8e7b99ff' }}>
             <p><strong>File:</strong> {imageInfo.originalName}</p>
             <p><strong>Size:</strong> {(imageInfo.size / 1024 / 1024).toFixed(2)} MB</p>
             <p>
               <strong>Quality:</strong> 
               <span style={{ 
-                // FIXED: Added fallback for quality
-                color: getQualityColor(analysis.imageQuality || analysis.quality || 'Good'),
+                color: getQualityColor(analysis.imageQuality || analysis.quality || 'Good :)'),
                 fontWeight: 'bold',
                 marginLeft: '0.25rem'
               }}>
-                {analysis.imageQuality || analysis.quality || 'Good'}
+                {analysis.imageQuality || analysis.quality || 'Good :)'}
               </span>
             </p>
           </div>
@@ -122,13 +119,13 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             
             {/* Basic Info */}
             <div className="result-item">
-              <h4>📊 Analysis Overview</h4>
+              <h4>Here's the Analysis Overview</h4>
               <ul className="result-list">
                 <li>
                   <strong>Type:</strong> 
                   <span style={{ 
                     textTransform: 'capitalize',
-                    background: '#f3f4f6',
+                    background: '#e6add5ff',
                     padding: '0.125rem 0.5rem',
                     borderRadius: '4px',
                     marginLeft: '0.5rem',
@@ -140,7 +137,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
                 <li>
                   <strong>Confidence:</strong> 
                   <span style={{ 
-                    color: parseFloat(safeGet(analysis, 'confidence', '0.8')) > 0.8 ? '#10b981' : '#f59e0b',
+                    color: parseFloat(safeGet(analysis, 'confidence', '0.8')) > 0.8 ? '#10b959ff' : '#f59e0b',
                     fontWeight: 'bold',
                     marginLeft: '0.5rem'
                   }}>
@@ -158,7 +155,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             {/* Objects Detected */}
             <div className="result-item">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <h4 style={{ margin: 0 }}>🔍 Objects</h4>
+                <h4 style={{ margin: 0 }}>Objects</h4>
                 <span className="badge">{analysis.objects?.length || 0}</span>
               </div>
               <ul className="result-list">
@@ -168,14 +165,14 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
                       <div style={{ 
                         width: '6px', 
                         height: '6px', 
-                        background: '#3b82f6', 
+                        background: '#735cfaff', 
                         borderRadius: '50%' 
                       }}></div>
                       {obj}
                     </li>
                   ))
                 ) : (
-                  <li style={{ color: '#9ca3af', fontStyle: 'italic' }}>No objects detected</li>
+                  <li style={{ color: '#7aa6f3ff', fontStyle: 'italic' }}>No objects detected</li>
                 )}
               </ul>
             </div>
@@ -183,14 +180,14 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             {/* Text Found */}
             <div className="result-item">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <h4 style={{ margin: 0 }}>📝 Text</h4>
+                <h4 style={{ margin: 0 }}>Text</h4>
                 <span className="badge">{analysis.text?.length || 0}</span>
               </div>
               <ul className="result-list">
                 {analysis.text && analysis.text.length > 0 ? (
                   analysis.text.map((txt, idx) => (
                     <li key={idx} style={{ 
-                      background: '#f0f9ff', 
+                      background: '#efbdf9ff', 
                       padding: '0.5rem',
                       borderRadius: '4px',
                       borderLeft: '3px solid #0ea5e9',
@@ -209,13 +206,13 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             {analysis.faces && analysis.faces.length > 0 && (
               <div className="result-item">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>👤 Subjects</h4>
+                  <h4 style={{ margin: 0 }}>Subjects</h4>
                   <span className="badge">{analysis.faces.length}</span>
                 </div>
                 <ul className="result-list">
                   {analysis.faces.map((face, idx) => (
                     <li key={idx} style={{ 
-                      background: '#fef7ed', 
+                      background: '#ffd69cff', 
                       padding: '0.75rem',
                       borderRadius: '6px',
                       borderLeft: '3px solid #f59e0b',
@@ -243,7 +240,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             {/* Azure Categories */}
             {analysis.categories && analysis.categories.length > 0 && (
               <div className="result-item">
-                <h4>📂 Azure Categories</h4>
+                <h4>Azure Categories</h4>
                 <ul className="result-list">
                   {analysis.categories.map((cat, idx) => (
                     <li key={idx}>
@@ -257,18 +254,18 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             {/* Azure Tags */}
             {analysis.tags && analysis.tags.length > 0 && (
               <div className="result-item">
-                <h4>🏷️ Azure Tags</h4>
+                <h4>Azure Tags</h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {analysis.tags.map((tag, idx) => (
                     <span 
                       key={idx}
                       style={{
-                        background: '#e0f2fe',
+                        background: '#98d5fdff',
                         color: '#0369a1',
                         padding: '0.25rem 0.5rem',
                         borderRadius: '12px',
                         fontSize: '0.75rem',
-                        border: '1px solid #bae6fd'
+                        border: '1px solid #000304ff'
                       }}
                     >
                       {tag.name} ({(parseFloat(tag.confidence) * 100).toFixed(0)}%)
@@ -281,7 +278,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             {/* Color Analysis */}
             {analysis.colors && (
               <div className="result-item">
-                <h4>🎨 Color Analysis</h4>
+                <h4>Color Analysis</h4>
                 <ul className="result-list">
                   {analysis.colors.dominantColors && (
                     <li>
@@ -330,38 +327,10 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
             {/* Brands Detection */}
             {analysis.brands && analysis.brands.length > 0 && (
               <div className="result-item">
-                <h4>🏢 Detected Brands</h4>
+                <h4>Detected Brands</h4>
                 <ul className="result-list">
                   {analysis.brands.map((brand, idx) => (
                     <li key={idx}>• {brand}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Celebrities */}
-            {analysis.celebrities && analysis.celebrities.length > 0 && (
-              <div className="result-item">
-                <h4>⭐ Recognized Faces</h4>
-                <ul className="result-list">
-                  {analysis.celebrities.map((celebrity, idx) => (
-                    <li key={idx}>
-                      <strong>{celebrity.name}:</strong> {(celebrity.confidence * 100).toFixed(1)}% confidence
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Landmarks */}
-            {analysis.landmarks && analysis.landmarks.length > 0 && (
-              <div className="result-item">
-                <h4>🏛️ Recognized Landmarks</h4>
-                <ul className="result-list">
-                  {analysis.landmarks.map((landmark, idx) => (
-                    <li key={idx}>
-                      <strong>{landmark.name}:</strong> {(landmark.confidence * 100).toFixed(1)}% confidence
-                    </li>
                   ))}
                 </ul>
               </div>
@@ -410,11 +379,10 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
         </div>
       </div>
 
-      {/* Add some CSS for badges */}
       <style>{`
         .badge {
-          background: #e5e7eb;
-          color: #374151;
+          background: #fa9fb8ff;
+          color: #222f45ff;
           padding: 0.125rem 0.5rem;
           border-radius: 12px;
           font-size: 0.75rem;

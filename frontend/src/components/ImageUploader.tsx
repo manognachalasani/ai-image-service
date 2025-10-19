@@ -60,7 +60,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onAnalysisComplete }) => 
             'Select Image'
           )}
         </label>
-        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+        <p style={{ fontSize: '0.875rem', color: '#776b80ff', marginTop: '0.5rem' }}>
           Supports: JPG, PNG, GIF, WebP (max 10MB)
         </p>
       </div>

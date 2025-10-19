@@ -41,14 +41,14 @@ const ExportOptions: React.FC<ExportOptionsProps> = ({ analysis, imageInfo }) =>
 
   return (
     <div className="card">
-      <h3>📤 Export Analysis</h3>
+      <h3>Export Analysis</h3>
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <button 
           className="primary-button"
           onClick={() => handleExport('pdf')}
           style={{ backgroundColor: '#dc2626' }}
         >
-          📄 PDF Report
+          PDF Report
         </button>
         
         <button 
@@ -56,7 +56,7 @@ const ExportOptions: React.FC<ExportOptionsProps> = ({ analysis, imageInfo }) =>
           onClick={() => handleExport('json')}
           style={{ backgroundColor: '#059669' }}
         >
-          📊 JSON Data
+          JSON Data
         </button>
         
         <button 
@@ -64,11 +64,11 @@ const ExportOptions: React.FC<ExportOptionsProps> = ({ analysis, imageInfo }) =>
           onClick={() => handleExport('csv')}
           style={{ backgroundColor: '#7c3aed' }}
         >
-          📈 CSV Spreadsheet
+          CSV Spreadsheet
         </button>
       </div>
       
-      <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+      <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#7c6b80ff' }}>
         <p><strong>Export Options:</strong> PDF file, JSON file, CSV File</p>
         <p><strong>Available Formats:</strong> Comprehensive reports and data exports for your analysis results</p>
       </div>

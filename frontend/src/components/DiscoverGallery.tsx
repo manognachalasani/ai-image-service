@@ -29,7 +29,7 @@ const DiscoverGallery: React.FC = () => {
   const loadPublicAnalyses = async () => {
     try {
       setLoading(true);
-      // Use the search endpoint with empty query to get all public images
+      // using the search endpoint with empty query to get all public images
       const data = await searchImages('');
       
       const analyses = data.results.map((item: any) => ({
@@ -43,7 +43,7 @@ const DiscoverGallery: React.FC = () => {
         thumbnail: `/uploads/thumb-${item.imagePath}`,
         fullImage: `/uploads/${item.imagePath}`,
         analysisType: getAnalysisType(item.objects),
-        confidence: '0.85' // Default confidence for public gallery
+        confidence: '0.85' // default confidence for public gallery
       }));
       
       setPublicAnalyses(analyses);
@@ -125,8 +125,8 @@ const DiscoverGallery: React.FC = () => {
             className="back-button"
             style={{
               padding: '0.5rem 1rem',
-              background: '#6b7280',
-              color: 'white',
+              background: '#f8d7ffff',
+              color: 'black',
               border: 'none',
               borderRadius: '6px',
               cursor: 'pointer',
@@ -150,7 +150,11 @@ const DiscoverGallery: React.FC = () => {
                   height: '300px',
                   objectFit: 'cover',
                   borderRadius: '8px', 
-                  border: '2px solid #e5e7eb' 
+                  border: '2px solid #000000ff' 
+                }}
+                onError={(e) => {
+                  // Fallback to full image if thumbnail doesn't exist
+                  e.currentTarget.src = `http://localhost:5000/uploads/${selectedAnalysis.imagePath}`;
                 }}
               />
             </div>
@@ -160,9 +164,9 @@ const DiscoverGallery: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
                 
                 <div className="result-item">
-                  <h4>📊 Analysis Type</h4>
+                  <h4>Analysis Type</h4>
                   <p style={{ 
-                    background: '#3b82f6', 
+                    background: '#d240ffff', 
                     color: 'white', 
                     padding: '0.25rem 0.75rem', 
                     borderRadius: '20px', 
@@ -175,7 +179,7 @@ const DiscoverGallery: React.FC = () => {
 
                 {selectedAnalysis.objects.length > 0 && (
                   <div className="result-item">
-                    <h4>🔍 Objects Detected</h4>
+                    <h4>Objects Detected</h4>
                     <ul className="result-list">
                       {selectedAnalysis.objects.map((obj, idx) => (
                         <li key={idx}>• {obj}</li>
@@ -186,7 +190,7 @@ const DiscoverGallery: React.FC = () => {
                 
                 {selectedAnalysis.text.length > 0 && (
                   <div className="result-item">
-                    <h4>📝 Text Found</h4>
+                    <h4>Text Found</h4>
                     <ul className="result-list">
                       {selectedAnalysis.text.map((txt, idx) => (
                         <li key={idx} style={{ fontStyle: 'italic' }}>"{txt}"</li>
@@ -197,13 +201,13 @@ const DiscoverGallery: React.FC = () => {
                 
                 {selectedAnalysis.faces.length > 0 && (
                   <div className="result-item">
-                    <h4>👤 Subjects</h4>
+                    <h4>Subjects</h4>
                     <p>{selectedAnalysis.faces.length} face(s) detected</p>
                   </div>
                 )}
 
                 <div className="result-item">
-                  <h4>📅 Upload Date</h4>
+                  <h4>Upload Date</h4>
                   <p>{new Date(selectedAnalysis.uploadDate).toLocaleDateString()}</p>
                 </div>
               </div>
@@ -218,7 +222,7 @@ const DiscoverGallery: React.FC = () => {
     <div className="discover-gallery">
       <div className="gallery-header">
         <div>
-          <h1>🌍 Discover Community Analyses</h1>
+          <h1>Discover Community Analyses</h1>
           <p>Explore images analyzed by users worldwide</p>
         </div>
       </div>
@@ -233,7 +237,7 @@ const DiscoverGallery: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               padding: '0.75rem',
-              border: '1px solid #d1d5db',
+              border: '1px solid #000000ff',
               borderRadius: '8px',
               flex: 1,
               fontSize: '1rem'
@@ -243,7 +247,7 @@ const DiscoverGallery: React.FC = () => {
             type="submit"
             style={{
               padding: '0.75rem 1.5rem',
-              background: '#3b82f6',
+              background: '#d240ffff',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -251,7 +255,7 @@ const DiscoverGallery: React.FC = () => {
               marginLeft: '0.5rem'
             }}
           >
-            🔍 Search
+            Search
           </button>
         </form>
 
@@ -263,7 +267,7 @@ const DiscoverGallery: React.FC = () => {
               className={`filter-button ${filterType === type.value ? 'active' : ''}`}
               style={{
                 padding: '0.5rem 1rem',
-                background: filterType === type.value ? '#3b82f6' : '#f3f4f6',
+                background: filterType === type.value ? '#d240ffff' : '#f3f4f6',
                 color: filterType === type.value ? 'white' : '#374151',
                 border: 'none',
                 borderRadius: '20px',
@@ -301,6 +305,10 @@ const DiscoverGallery: React.FC = () => {
                 src={`http://localhost:5000${analysis.thumbnail}`} 
                 alt={analysis.filename}
                 className="gallery-thumbnail"
+                onError={(e) => {
+                  // Fallback to full image if thumbnail doesn't exist
+                  e.currentTarget.src = `http://localhost:5000/uploads/${analysis.imagePath}`;
+                }}
               />
               
               <div className="card-content">
@@ -320,7 +328,7 @@ const DiscoverGallery: React.FC = () => {
                 </div>
                 
                 <div className="card-meta">
-                  <small>📅 {new Date(analysis.uploadDate).toLocaleDateString()}</small>
+                  <small>{new Date(analysis.uploadDate).toLocaleDateString()}</small>
                 </div>
 
                 <div className="click-hint">
@@ -375,7 +383,7 @@ const DiscoverGallery: React.FC = () => {
         }
         
         .gallery-card:hover {
-          border-color: #3b82f6;
+          border-color: #d240ffff;
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
@@ -397,7 +405,7 @@ const DiscoverGallery: React.FC = () => {
         
         .badge {
           background: #e5e7eb;
-          color: #374151;
+          color: #4d3751ff;
           padding: 0.25rem 0.5rem;
           border-radius: 12px;
           font-size: 0.75rem;
@@ -405,7 +413,7 @@ const DiscoverGallery: React.FC = () => {
         }
         
         .type-badge {
-          background: #3b82f6;
+          background: #d240ffff;
           color: white;
           text-transform: capitalize;
         }
@@ -415,7 +423,7 @@ const DiscoverGallery: React.FC = () => {
         }
         
         .card-meta small {
-          color: #6b7280;
+          color: #806b7dff;
           font-size: 0.75rem;
         }
         
@@ -427,7 +435,7 @@ const DiscoverGallery: React.FC = () => {
         }
         
         .click-hint small {
-          color: #3b82f6;
+          color: #d240ffff;
           font-style: italic;
         }
         
@@ -445,7 +453,7 @@ const DiscoverGallery: React.FC = () => {
           background: white;
           padding: 1rem;
           border-radius: 8px;
-          border: 1px solid #e5e7eb;
+          border: 1px solid #0b0c0dff;
         }
         
         .result-list {
@@ -456,7 +464,7 @@ const DiscoverGallery: React.FC = () => {
         
         .result-list li {
           padding: 0.25rem 0;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: 1px solid #000000ff;
         }
         
         .result-list li:last-child {
