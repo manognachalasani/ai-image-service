@@ -67,7 +67,7 @@ function AppContent() {
                   <p>Upload an image to see AI analysis results here.</p>
                   <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0f9ff', borderRadius: '6px' }}>
                     <p style={{ fontSize: '0.875rem', color: '#0369a1' }}>
-                      <strong>💡 Tip:</strong> Register to save your analysis history and access premium features!
+                      <strong>💡 Tip:</strong> Register to save your analysis history now!
                     </p>
                   </div>
                 </div>

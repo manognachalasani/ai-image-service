@@ -29,6 +29,36 @@ export interface AnalysisResult {
   imageQuality?: string;
   processingTime?: string;
   timestamp?: string;
+  
+  // Azure-specific fields
+  categories?: Array<{
+    name: string;
+    score: string;
+  }>;
+  tags?: Array<{
+    name: string;
+    confidence: string;
+  }>;
+  colors?: {
+    dominantColorForeground?: string;
+    dominantColorBackground?: string;
+    dominantColors?: string[];
+    accentColor?: string;
+    isBWImg?: boolean;
+  };
+  imageType?: {
+    clipArtType?: number;
+    lineDrawingType?: number;
+  };
+  brands?: string[];
+  celebrities?: Array<{
+    name: string;
+    confidence: number;
+  }>;
+  landmarks?: Array<{
+    name: string;
+    confidence: number;
+  }>;
 }
 
 export interface ImageInfo {
@@ -246,5 +276,3 @@ export const bulkExportAnalyses = async (analysisIds: number[], format: string =
     return response.blob();
   }
 };
-
-// You can remove analyzeImageWithAuth since the main analyzeImage now includes auth

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AnalysisResult, ImageInfo, searchImages } from '../services/api';
+import { searchImages } from '../services/api';
 
 interface PublicAnalysis {
   id: number;

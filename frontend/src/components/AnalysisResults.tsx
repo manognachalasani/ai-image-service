@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { AnalysisResult, ImageInfo } from '../services/api';
 import ExportOptions from './ExportOptions';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +18,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
 }) => {
   const { isAuthenticated } = useAuth();
 
-  // Safe helper functions to handle undefined values
+  // safe helper functions to handle undefined values
   const safeJoin = (array: any[] | undefined, separator: string = ', '): string => {
     if (!array || !Array.isArray(array)) return 'None';
     return array.join(separator);
@@ -28,7 +28,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
     return obj && obj[key] ? String(obj[key]) : fallback;
   };
 
-  // Get analysis quality indicator
+  // get analysis quality indicator
   const getQualityColor = (quality: string) => {
     const qualityLower = quality?.toLowerCase() || 'good';
     switch (qualityLower) {
@@ -234,6 +234,133 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({
                           {face.expression && <span>Expression: {face.expression}</span>}
                         </div>
                       </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Azure Categories */}
+            {analysis.categories && analysis.categories.length > 0 && (
+              <div className="result-item">
+                <h4>📂 Azure Categories</h4>
+                <ul className="result-list">
+                  {analysis.categories.map((cat, idx) => (
+                    <li key={idx}>
+                      <strong>{cat.name.replace('_', ' ')}:</strong> {(parseFloat(cat.score) * 100).toFixed(1)}%
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Azure Tags */}
+            {analysis.tags && analysis.tags.length > 0 && (
+              <div className="result-item">
+                <h4>🏷️ Azure Tags</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {analysis.tags.map((tag, idx) => (
+                    <span 
+                      key={idx}
+                      style={{
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        border: '1px solid #bae6fd'
+                      }}
+                    >
+                      {tag.name} ({(parseFloat(tag.confidence) * 100).toFixed(0)}%)
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Color Analysis */}
+            {analysis.colors && (
+              <div className="result-item">
+                <h4>🎨 Color Analysis</h4>
+                <ul className="result-list">
+                  {analysis.colors.dominantColors && (
+                    <li>
+                      <strong>Dominant Colors:</strong> {analysis.colors.dominantColors.join(', ')}
+                    </li>
+                  )}
+                  {analysis.colors.dominantColorForeground && (
+                    <li>
+                      <strong>Foreground:</strong> 
+                      <span 
+                        style={{
+                          display: 'inline-block',
+                          width: '12px',
+                          height: '12px',
+                          background: analysis.colors.dominantColorForeground,
+                          margin: '0 0.5rem',
+                          borderRadius: '2px',
+                          border: '1px solid #ccc'
+                        }}
+                      ></span>
+                      {analysis.colors.dominantColorForeground}
+                    </li>
+                  )}
+                  {analysis.colors.dominantColorBackground && (
+                    <li>
+                      <strong>Background:</strong> 
+                      <span 
+                        style={{
+                          display: 'inline-block',
+                          width: '12px',
+                          height: '12px',
+                          background: analysis.colors.dominantColorBackground,
+                          margin: '0 0.5rem',
+                          borderRadius: '2px',
+                          border: '1px solid #ccc'
+                        }}
+                      ></span>
+                      {analysis.colors.dominantColorBackground}
+                    </li>
+                  )}
+                  {analysis.colors.isBWImg && <li><strong>Black & White Image</strong></li>}
+                </ul>
+              </div>
+            )}
+
+            {/* Brands Detection */}
+            {analysis.brands && analysis.brands.length > 0 && (
+              <div className="result-item">
+                <h4>🏢 Detected Brands</h4>
+                <ul className="result-list">
+                  {analysis.brands.map((brand, idx) => (
+                    <li key={idx}>• {brand}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Celebrities */}
+            {analysis.celebrities && analysis.celebrities.length > 0 && (
+              <div className="result-item">
+                <h4>⭐ Recognized Faces</h4>
+                <ul className="result-list">
+                  {analysis.celebrities.map((celebrity, idx) => (
+                    <li key={idx}>
+                      <strong>{celebrity.name}:</strong> {(celebrity.confidence * 100).toFixed(1)}% confidence
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Landmarks */}
+            {analysis.landmarks && analysis.landmarks.length > 0 && (
+              <div className="result-item">
+                <h4>🏛️ Recognized Landmarks</h4>
+                <ul className="result-list">
+                  {analysis.landmarks.map((landmark, idx) => (
+                    <li key={idx}>
+                      <strong>{landmark.name}:</strong> {(landmark.confidence * 100).toFixed(1)}% confidence
                     </li>
                   ))}
                 </ul>
